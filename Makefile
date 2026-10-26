@@ -1,15 +1,8 @@
-VENV	= .venv
+VENV			= .venv
+EXCLUDE_VENV	= --exclude $(VENV)
 
 SRC		= src
 MAIN	= $(SRC)/main.py
-
-MYPY_FLAGS = \
-	--warn-return-any           \
-	--warn-unused-ignores       \
-	--ignore-missing-imports    \
-	--disallow-untyped-defs     \
-	--check-untyped-defs
-
 
 install:
 	uv sync
@@ -21,12 +14,12 @@ run-request:
 	uv run $(SRC)/openrouter_api.py
 
 lint: install
-	uv run flake8 . --exclude $(VENV)
-	uv run mypy . $(MYPY_FLAGS)
+	uv run flake8 . $(EXCLUDE_VENV)
+	uv run mypy . $(EXCLUDE_VENV)
 
 lint-strict: install
-	uv run flake8 . --exclude $(VENV)
-	uv run mypy . --strict
+	uv run flake8 . $(EXCLUDE_VENV)
+	uv run mypy . --strict $(EXCLUDE_VENV)
 
 clean:
 	uv clean
