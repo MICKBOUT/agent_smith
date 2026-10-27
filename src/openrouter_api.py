@@ -11,10 +11,11 @@ def sendRequest(API_KEY: str = "") -> Any:
         response = client.chat.send(
             model="nvidia/nemotron-3.5-super-vl:free",
             messages=[
-                {"role": "user", "content": "What is the meaning of life?"}
+                {"role": "user", "content": "What is the meaning of life? in just one sentence"}
             ],
         )
 
+        print(dir(response))
         return response.choices[0].message.content
 
 
