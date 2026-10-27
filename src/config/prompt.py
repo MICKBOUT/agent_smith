@@ -5,9 +5,10 @@ Never write the output of your code yourself; you will receive it as an Observat
 
 Example:
 Thought: I'll write the function.
-`````python
-code = "def add(a, b):\\n    return a + b"
-````<end_code>
+```python
+code = "def add(a: int, b: int):\\n    return a + b"
+```
+<end_code>
 """
 
 
@@ -22,10 +23,9 @@ Tools available in the sandbox:
 
 Example:
 Thought: I'll write the function and test it.
-`````python
+```python
 code = "def add(a, b):\\n    return a + b"
 print(run_tests(code, ["assert add(1, 2) == 3"]))
-````<end_code>
+```
+<end_code>
 """
-
-TASK = "Write a function to find the similar elements from the given two tuple lists."

@@ -1,8 +1,8 @@
 from .config import OPENROUTER_URL, OPENROUTER_URL_KEY, MBPP_REDUCE_PATH
-from .prompt import SYSTEM_PROMPT_v0, TASK
+from .prompt import SYSTEM_PROMPT_v0
 
 __all__ = [
     OPENROUTER_URL, OPENROUTER_URL_KEY,
-    SYSTEM_PROMPT_v0, TASK,
+    SYSTEM_PROMPT_v0,
     MBPP_REDUCE_PATH
 ]

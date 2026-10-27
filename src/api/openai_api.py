@@ -5,87 +5,77 @@ import json
 from openai import OpenAI
 import dotenv
 
-from ..config import SYSTEM_PROMPT_v0, TASK, OPENROUTER_URL, OPENROUTER_URL_KEY
+
+from ..config import SYSTEM_PROMPT_v0
 from ..utils.random_question import getRandoMBPP
+from ..utils.enum import LLMProvider
 
 
-def getclient(API_KEY: str) -> OpenAI:
+def getAPIkey(provider: LLMProvider) -> str:
+    API_KEY = os.getenv(provider.value.API_KEY_NAME)
+    if API_KEY is None:
+        raise ValueError(f"{provider.value.API_KEY_NAME} must be set as env variable")
+    return API_KEY
+
+
+def getclient(provider: LLMProvider) -> OpenAI:
     return OpenAI(
-        base_url=OPENROUTER_URL,
-        api_key=API_KEY,
+        base_url=provider.value.URL,
+        api_key=getAPIkey(provider),
     )
-
-
-def checkingLimits(API_KEY: str = "") -> None:
-    response = requests.get(
-        url=OPENROUTER_URL_KEY,
-        headers={
-            "Authorization": f"Bearer {API_KEY}"
-        }
-    )
-    print(json.dumps(response.json(), indent=2))
 
 
 def printModelslst(client: OpenAI) -> None:
-    models = [m.id for m in client.models.list() if m.id.endswith(":free")]
+    models = [m.id for m in client.models.list()]
     for model in models:
         print(model)
 
 
-# def genText(client: OpenAI) -> None:
-#     r = client.chat.completions.create(
-#         model="poolside/laguna-s-2.1",  # any model id from openrouter.ai/models
-#         messages=[{"role": "user", "content": "Write a function to find the minimum cost path to reach (m, n) from (0, 0) for the given cost matrix cost[][] and a position (m, n) in cost[][]."}],
-#         stop=["<end_code>"],
-#     )
-
-#     print(r.choices[0].message.content)
-#     if r.usage is None:
-#         raise ValueError("r.usage is None")
-#     print(
-#         f"prompt_tokens: {r.usage.prompt_tokens}\n"
-#         f"completion_tokens: {r.usage.completion_tokens}"
-#     )
-
-
-def genCode(client: OpenAI, question: str = "") -> None:
+def genCode(client: OpenAI, llm_provider: LLMProvider, question: str = "") -> None:
     if not question:
         random_question = getRandoMBPP()
         task_id, task_text = random_question["task_id"], random_question["text"]
+    else:
+        task_id, task_text = None, question
     print(f"Task id: {task_id}, Question: {task_text}")
 
     r = client.chat.completions.create(
-        model="poolside/laguna-s-2.1",
+        model=llm_provider.value.DEFAULT_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT_v0},
-            {"role": "user", "content": TASK},
+            {"role": "user", "content": task_text},
         ],
         stop=["<end_code>"],
         max_tokens=1000,
-        # max_tokens=1500,
-        # temperature=0.2,
+        temperature=0.2,
     )
 
     message = r.choices[0].message.content
+    if not isinstance(message, str):
+        raise ValueError("The model returned an empty or non-text response")
 
-    try:
-        message = message[message.find("```python") + 10:]
-        message = message[:message.find("```")]
-    except Exception as e:
-        print(message)
-        raise e
-    return message
+    start = message.find("```python")
+    if start >= 0:
+        start += len("```python")
+        if message[start:start + 2] == "\r\n":
+            start += 2
+        elif message[start:start + 1] == "\n":
+            start += 1
+        message = message[start:]
+        end = message.find("```")
+        if end >= 0:
+            message = message[:end]
+    return message.strip()
 
 
 if __name__ == "__main__":
     dotenv.load_dotenv()
-    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-    if OPENROUTER_API_KEY is None:
-        raise ValueError("OPENROUTER_API_KEY must be set as env variable")
 
-    client = getclient(OPENROUTER_API_KEY)
+    llm_provider = LLMProvider.GROQ
+    client = getclient(llm_provider)
+
     # checkingLimits(OPENROUTER_API_KEY)
     # genText(client)
     # printModelslst(client)
-    code = genCode(client)
+    code = genCode(client, llm_provider)
     print(code)
