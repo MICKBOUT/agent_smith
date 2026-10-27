@@ -7,11 +7,8 @@ MAIN	= $(SRC)/main.py
 install:
 	uv sync
 
-run: install
-	uv run $(MAIN)
-
-run-openrouter:
-	uv run $(SRC)/api/openrouter_api.py
+# run: install
+# 	uv run $(MAIN)
 
 run-openai:
 	uv run python -m src.api.openai_api

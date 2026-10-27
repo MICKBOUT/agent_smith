@@ -1,5 +1,4 @@
 import os
-import requests
 import json
 
 from openai import OpenAI
@@ -12,6 +11,8 @@ from ..utils.enum import LLMProvider
 
 
 def getAPIkey(provider: LLMProvider) -> str:
+    # todo: only load if not load
+    dotenv.load_dotenv()
     API_KEY = os.getenv(provider.value.API_KEY_NAME)
     if API_KEY is None:
         raise ValueError(f"{provider.value.API_KEY_NAME} must be set as env variable")
@@ -71,7 +72,7 @@ def genCode(client: OpenAI, llm_provider: LLMProvider, question: str = "") -> No
 if __name__ == "__main__":
     dotenv.load_dotenv()
 
-    llm_provider = LLMProvider.GROQ
+    llm_provider = LLMProvider.OPENROUTER
     client = getclient(llm_provider)
 
     # checkingLimits(OPENROUTER_API_KEY)

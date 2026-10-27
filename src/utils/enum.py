@@ -8,6 +8,12 @@ class Provider(ABC):
     DEFAULT_MODEL = ""
 
 
+class OpenAIProvider(Provider):
+    API_KEY_NAME = "OPENAI_API_KEY"
+    URL = "https://api.openai.com/v1"
+    DEFAULT_MODEL = "gpt-5.5"
+
+
 class GeminiProvider(Provider):
     API_KEY_NAME = "GEMINI_API_KEY"
     URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -26,10 +32,16 @@ class TogetherIaProvider(Provider):
     DEFAULT_MODEL = "Prism-ML/Ternary-Bonsai-27B"
 
 
-class GroqProvider(ABC):
+class GroqProvider(Provider):
     API_KEY_NAME = "GROQ_API_KEY"
     URL = "https://api.groq.com/openai/v1"
     DEFAULT_MODEL = "qwen/qwen3.8-27b"
+
+
+class CoherProvider(Provider):
+    API_KEY_NAME = "COHER_API_KEY"
+    URL = "https://api.cohere.ai/compatibility/v1"
+    DEFAULT_MODEL = "command-a-plus-05-2026"
 
 
 class LLMProvider(Enum):
@@ -37,3 +49,5 @@ class LLMProvider(Enum):
     OPENROUTER = OpenRouterProvider
     TOGETHERIA = TogetherIaProvider
     GROQ = GroqProvider
+    COHER = CoherProvider
+    OPENAI = OpenAIProvider
