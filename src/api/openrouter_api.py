@@ -15,7 +15,6 @@ def sendRequest(API_KEY: str = "") -> Any:
             ],
         )
 
-        print(dir(response))
         return response.choices[0].message.content
 
 

@@ -11,10 +11,10 @@ run: install
 	uv run $(MAIN)
 
 run-openrouter:
-	uv run $(SRC)/openrouter_api.py
+	uv run $(SRC)/api/openrouter_api.py
 
 run-openai:
-	uv run $(SRC)/openai_api.py
+	uv run python -m src.api.openai_api
 
 lint: install
 	uv run flake8 . $(EXCLUDE_VENV)
