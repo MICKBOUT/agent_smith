@@ -6,6 +6,7 @@ from openai import OpenAI
 import dotenv
 
 from ..config import SYSTEM_PROMPT_v0, TASK, OPENROUTER_URL, OPENROUTER_URL_KEY
+from ..utils.random_question import getRandoMBPP
 
 
 def getclient(API_KEY: str) -> OpenAI:
@@ -25,7 +26,7 @@ def checkingLimits(API_KEY: str = "") -> None:
     print(json.dumps(response.json(), indent=2))
 
 
-def printModelslst(client: OpenAI) -> list[str]:
+def printModelslst(client: OpenAI) -> None:
     models = [m.id for m in client.models.list() if m.id.endswith(":free")]
     for model in models:
         print(model)
@@ -47,7 +48,12 @@ def printModelslst(client: OpenAI) -> list[str]:
 #     )
 
 
-def genCode(client: OpenAI) -> None:
+def genCode(client: OpenAI, question: str = "") -> None:
+    if not question:
+        random_question = getRandoMBPP()
+        task_id, task_text = random_question["task_id"], random_question["text"]
+    print(f"Task id: {task_id}, Question: {task_text}")
+
     r = client.chat.completions.create(
         model="poolside/laguna-s-2.1",
         messages=[
@@ -81,4 +87,5 @@ if __name__ == "__main__":
     # checkingLimits(OPENROUTER_API_KEY)
     # genText(client)
     # printModelslst(client)
-    print(genCode(client))
+    code = genCode(client)
+    print(code)
