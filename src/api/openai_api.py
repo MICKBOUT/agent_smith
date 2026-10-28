@@ -1,13 +1,12 @@
 import os
-import json
 
 from openai import OpenAI
 import dotenv
 
-
 from ..config import SYSTEM_PROMPT_v0
-from ..utils.random_question import getRandoMBPP
 from ..utils.enum import LLMProvider
+from ..models.exception import NoCodeBlockFound
+from ..models.models_public import MBPPTaskInput
 
 
 def getAPIkey(provider: LLMProvider) -> str:
@@ -32,51 +31,75 @@ def printModelslst(client: OpenAI) -> None:
         print(model)
 
 
-def genCode(client: OpenAI, llm_provider: LLMProvider, question: str = "") -> None:
-    if not question:
-        random_question = getRandoMBPP()
-        task_id, task_text = random_question["task_id"], random_question["text"]
-    else:
-        task_id, task_text = None, question
-    print(f"Task id: {task_id}, Question: {task_text}")
-
-    r = client.chat.completions.create(
-        model=llm_provider.value.DEFAULT_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT_v0},
-            {"role": "user", "content": task_text},
-        ],
-        stop=["<end_code>"],
-        max_tokens=1000,
-        temperature=0.2,
-    )
-
-    message = r.choices[0].message.content
-    if not isinstance(message, str):
-        raise ValueError("The model returned an empty or non-text response")
-
+def extractCode(message: str) -> str:
     start = message.find("```python")
-    if start >= 0:
-        start += len("```python")
-        if message[start:start + 2] == "\r\n":
-            start += 2
-        elif message[start:start + 1] == "\n":
-            start += 1
-        message = message[start:]
-        end = message.find("```")
-        if end >= 0:
-            message = message[:end]
-    return message.strip()
+    if start < 0:
+        raise NoCodeBlockFound("no ```python block")
+    start += len("```python")
+    end = message.find("```", start)
+    if end < 0:
+        raise NoCodeBlockFound("unclosed code block")
+    return message[start:end].strip()
+
+
+def genCode(client: OpenAI, llm_provider: LLMProvider, question: MBPPTaskInput, max_retries: int = 3) -> str:
+    task_text, func_def = question.task_definition, question.function_definition
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT_v0},
+        {"role": "user", "content": f"{task_text} Function Definition: '{func_def}'"},
+    ]
+    print(messages[1]["content"])
+
+    for attempt in range(max_retries + 1):
+        r = client.chat.completions.create(
+            model=llm_provider.value.DEFAULT_MODEL,
+            messages=messages,
+            stop=["<end_code>"],
+            max_tokens=1500,
+            temperature=0.2,
+        )
+        message = r.choices[0].message.content
+        if not isinstance(message, str):
+            raise ValueError("The model returned an empty or non-text response")
+
+        try:
+            return extractCode(message)
+        except NoCodeBlockFound as e:
+            if attempt == max_retries:
+                raise
+            print(message)
+            messages.append({"role": "assistant", "content": message})
+            messages.append({
+                "role": "user",
+                "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
+            })
+            print(message)
+
+
+def addTest(code: str, question: MBPPTaskInput) -> str:
+    code += '\n'
+    for test_import in question.test_imports:
+        code += test_import + '\n'
+    code += '\n'
+    for assert_test in question.test_list:
+        code += assert_test + '\n'
+
+    return code
+
+
+def generateSandboxReadyCode(question: MBPPTaskInput) -> str:
+    dotenv.load_dotenv()
+    llm_provider = LLMProvider.OPENROUTER
+    client = getclient(llm_provider)
+    llm_code = genCode(client, llm_provider, question)
+    sanbox_code = addTest(llm_code, question)
+    return sanbox_code
 
 
 if __name__ == "__main__":
-    dotenv.load_dotenv()
-
-    llm_provider = LLMProvider.OPENROUTER
-    client = getclient(llm_provider)
-
-    # checkingLimits(OPENROUTER_API_KEY)
-    # genText(client)
     # printModelslst(client)
-    code = genCode(client, llm_provider)
+
+    from ..utils.random_question import getRandoMBPP
+    code = generateSandboxReadyCode(getRandoMBPP())
     print(code)
