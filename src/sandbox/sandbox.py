@@ -46,7 +46,7 @@ class Sandbox:
 
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "src.sandbox.worker"],
+                [sys.executable, "-m", "src.sandbox.worker", "--single"],
                 input=code,
                 capture_output=True,
                 text=True,
@@ -65,8 +65,12 @@ class Sandbox:
 
 
 def main():
+    with open(".dev/suspicious_code.py", "r") as f:
+        code = f.read()
+
     sandbox = Sandbox()
-    sandbox.repl()
+
+    sandbox.execute(code)
 
 
 if __name__ == "__main__":

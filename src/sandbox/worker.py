@@ -7,13 +7,17 @@ namespace = get_new_namespace()
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--single":
+        code = sys.stdin.read()
+        exec(code, namespace, namespace)
+        return
+
     code = ""
     for line in sys.stdin:
-        code += line.rstrip("\n")
+        code += line
         if code.strip().endswith(":"):
-            code += "\n"
             continue
-        if code == "exit":
+        if code.strip() == "exit":
             break
 
         exec(code, namespace, namespace)
@@ -21,9 +25,4 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except (KeyboardInterrupt, SystemExit):
-        pass
-    except Exception as e:
-        raise e
+    main()
