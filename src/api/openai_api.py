@@ -1,24 +1,29 @@
 import os
 
 from openai import OpenAI
-import dotenv
+from functools import lru_cache
 
-from ..config import SYSTEM_PROMPT_v0
+from ..config import SYSTEM_PROMPT_v0, DEFAULT_PROVIDER
 from ..utils.enum import LLMProvider
 from ..models.exception import NoCodeBlockFound
 from ..models.models_public import MBPPTaskInput
 
 
+@lru_cache(maxsize=1)
+def _load_dotenv() -> None:
+    from dotenv import load_dotenv
+    load_dotenv()
+
+
 def getAPIkey(provider: LLMProvider) -> str:
-    # todo: only load if not load
-    dotenv.load_dotenv()
+    _load_dotenv()
     API_KEY = os.getenv(provider.value.API_KEY_NAME)
     if API_KEY is None:
         raise ValueError(f"{provider.value.API_KEY_NAME} must be set as env variable")
     return API_KEY
 
 
-def getclient(provider: LLMProvider) -> OpenAI:
+def getClient(provider: LLMProvider) -> OpenAI:
     return OpenAI(
         base_url=provider.value.URL,
         api_key=getAPIkey(provider),
@@ -50,7 +55,6 @@ def genCode(client: OpenAI, llm_provider: LLMProvider, question: MBPPTaskInput, 
         {"role": "user", "content": f"{task_text} Function Definition: '{func_def}'"},
     ]
     print(messages[1]["content"])
-
     for attempt in range(max_retries + 1):
         r = client.chat.completions.create(
             model=llm_provider.value.DEFAULT_MODEL,
@@ -88,18 +92,15 @@ def addTest(code: str, question: MBPPTaskInput) -> str:
     return code
 
 
-def generateSandboxReadyCode(question: MBPPTaskInput) -> str:
-    dotenv.load_dotenv()
-    llm_provider = LLMProvider.OPENROUTER
-    client = getclient(llm_provider)
-    llm_code = genCode(client, llm_provider, question)
-    sanbox_code = addTest(llm_code, question)
-    return sanbox_code
+def generateSandboxReadyCode(question: MBPPTaskInput, llm_provider: LLMProvider = DEFAULT_PROVIDER) -> str:
+    # client http so regenerate each time for connection timeout issue
+    with getClient(llm_provider) as client:
+        llm_code = genCode(client, llm_provider, question)
+    code = addTest(llm_code, question)
+    return code
 
 
 if __name__ == "__main__":
-    # printModelslst(client)
-
     from ..utils.random_question import getRandoMBPP
     code = generateSandboxReadyCode(getRandoMBPP())
     print(code)
