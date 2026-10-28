@@ -13,32 +13,50 @@ class Sandbox:
             [sys.executable, "-u", "-m", "src.sandbox.worker"],
             stdin=subprocess.PIPE,
             stdout=None,
+            stderr=None,
             text=True,
         )
 
         try:
             while True:
                 import time
-                time.sleep(0.01)  # fix de vieux con
-
-                line = input('\033[1;38;2;194;178;128mSand\033[1;38;2;0;150;255mBox\033[0m> ')
-
+                time.sleep(0.1)
+                line = input("sandbox> ")
                 if line.strip() == "exit":
                     break
+                if not line.strip():
+                    continue
 
-                while line.strip().endswith(":") and line.strip():
-                    line = line + "\n" + input("...")
+                lines = [line]
+                if line.rstrip().endswith(":") or line.rstrip().endswith("\\"):
+                    while True:
+                        next = input(".........")
+                        if not next.strip():
+                            break
+                        lines.append(next)
 
-                worker.stdin.write(line + "\n")
+                code = "\n".join(lines) + "\n"
+
+                if len(code.encode("utf-8")) > self.MAX_CODE_LEN:
+                    print("SandboxError: code length limit exceeded", file=sys.stderr)
+                    continue
+                if worker.poll() is not None:
+                    print("Sandbox worker stopped.", file=sys.stderr)
+                    break
+
+                worker.stdin.write(str(len(code)) + "\n" + code)
                 worker.stdin.flush()
-
-                # result = worker.stdout.readline()
-
-                # print(result, end="")
         except EOFError:
-            print("SUCESS")
-        except (KeyboardInterrupt, SystemExit):
+            pass
+        except KeyboardInterrupt:
             print("\nBye!")
+            worker.kill()
+            worker.wait()
+        finally:
+            if worker.stdin is not None and not worker.stdin.closed:
+                worker.stdin.close()
+            if worker.poll() is None:
+                worker.wait()
 
     def execute(self, code: str) -> int:
         if len(code.encode("utf-8")) > self.MAX_CODE_LEN:
@@ -65,12 +83,16 @@ class Sandbox:
 
 
 def main():
-    with open(".dev/suspicious_code.py", "r") as f:
-        code = f.read()
-
     sandbox = Sandbox()
 
-    sandbox.execute(code)
+    # with open(".dev/suspicious_code.py", "r") as f:
+    #     code = f.read()
+    # sandbox.execute(code)
+    try:
+        sandbox.repl()
+    except Exception as e:
+        print(e)
+
 
 
 if __name__ == "__main__":

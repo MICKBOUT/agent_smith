@@ -12,17 +12,24 @@ def main():
         exec(code, namespace, namespace)
         return
 
-    code = ""
-    for line in sys.stdin:
-        code += line
-        if code.strip().endswith(":"):
-            continue
-        if code.strip() == "exit":
+    while True:
+        header = sys.stdin.readline()
+        if not header:
             break
 
-        exec(code, namespace, namespace)
-        code = ""
+        try:
+            code_length = int(header)
+        except ValueError:
+            break
 
+        code = sys.stdin.read(code_length)
+        if len(code) != code_length:
+            break
+
+        try:
+            exec(compile(code, "<sandbox>", "single"), namespace, namespace)
+        except Exception as error:
+            print(f"{type(error).__name__}: {error}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
