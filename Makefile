@@ -24,5 +24,8 @@ lint-strict: install
 
 clean:
 	uv clean
+	rm -rf $(VENV)
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 
 .PHONY: install run debug package lint lint-strict clean
