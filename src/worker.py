@@ -1,22 +1,27 @@
 import sys
 
-from sandbox import SafeBuiltins, SandboxError
+from sandbox_utils import get_new_namespace
+
+
+namespace = get_new_namespace()
 
 
 def main():
-    code = sys.stdin.read()
-    namespace = {
-        "__builtins__": SafeBuiltins.all
-    }
+    code = ""
+    for line in sys.stdin:
+        code += line.rstrip("\n")
+        if code.strip().endswith(":"):
+            code += "\n"
+            continue
+        if code == "exit":
+            break
 
-    try:
         exec(code, namespace, namespace)
-    except NameError as e:
-        raise SandboxError(e)
+        code = ""
 
 
 if __name__ == "__main__":
     try:
         main()
-    except SandboxError as e:
-        print(e)
+    except (KeyboardInterrupt, SystemExit):
+        pass
