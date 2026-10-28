@@ -3,10 +3,18 @@ SYSTEM_PROMPT_v0 = """You solve Python tasks by writing code that is executed in
 Each turn: write a short Thought, then exactly ONE code block, then write <end_code> and stop.
 Never write the output of your code yourself; you will receive it as an Observation.
 
-Example:
-Thought: I'll write the function.
+Example 1:
+Thought: I'll write the to add two numbers.
 ```python
-code = "def add(a: int, b: int):\\n    return a + b"
+def add(a: int, b: int):
+    return a + b
+```
+Example 2:
+Thought: I'll write the to find the square root of a value.
+```python
+import math
+def add(a: int):
+    return math.sqrt(a)
 ```
 <end_code>
 """
