@@ -1,6 +1,6 @@
 import sys
 
-from sandbox_utils import get_new_namespace
+from .sandbox_utils import get_new_namespace
 
 
 namespace = get_new_namespace()
@@ -25,3 +25,5 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         pass
+    except Exception as e:
+        raise e

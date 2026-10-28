@@ -1,7 +1,7 @@
 import sys
 import subprocess
 
-from sandbox_utils import SandboxError
+from ..models.exception import SandboxError
 
 
 class Sandbox:
@@ -10,7 +10,7 @@ class Sandbox:
 
     def repl(self) -> None:
         worker = subprocess.Popen(
-            [sys.executable, "-u", "src/worker.py"],
+            [sys.executable, "-u", "-m", "src.sandbox.worker"],
             stdin=subprocess.PIPE,
             stdout=None,
             text=True,
@@ -40,13 +40,13 @@ class Sandbox:
         except (KeyboardInterrupt, SystemExit):
             print("\nBye!")
 
-    def execute(self, code: str) -> None:
+    def execute(self, code: str) -> int:
         if len(code.encode("utf-8")) > self.MAX_CODE_LEN:
             raise SandboxError("lenght of code hit the limits!")
 
         try:
             result = subprocess.run(
-                [sys.executable, "src/worker.py"],
+                [sys.executable, "-m", "src.sandbox.worker"],
                 input=code,
                 capture_output=True,
                 text=True,
@@ -61,7 +61,13 @@ class Sandbox:
         if result.returncode != 0:
             print(result.stderr, end="", file=sys.stderr)
 
+        return result.returncode
+
 
 def main():
     sandbox = Sandbox()
     sandbox.repl()
+
+
+if __name__ == "__main__":
+    main()
