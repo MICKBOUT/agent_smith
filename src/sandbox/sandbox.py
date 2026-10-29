@@ -21,7 +21,7 @@ class Sandbox:
             while True:
                 import time
                 time.sleep(0.1)
-                line = input("sandbox> ")
+                line = input("\033[1m\033[38;2;194;178;128msand\033[38;2;80;150;255mbox\033[0m>")
                 if line.strip() == "exit":
                     break
                 if not line.strip():
