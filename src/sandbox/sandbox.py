@@ -1,7 +1,11 @@
 import sys
 import subprocess
 
+import codeop
+
 from ..models.exception import SandboxError
+
+sandbox_name = "\033[1m\033[38;2;194;178;128msand\033[38;2;80;150;255mbox\033[0m> "
 
 
 class Sandbox:
@@ -20,20 +24,27 @@ class Sandbox:
         try:
             while True:
                 import time
-                time.sleep(0.1)
-                line = input("\033[1m\033[38;2;194;178;128msand\033[38;2;80;150;255mbox\033[0m>")
+                time.sleep(0.01)  # fix denfoire a changer le plus vite possible
+
+                line = input(sandbox_name)
+
                 if line.strip() == "exit":
                     break
                 if not line.strip():
                     continue
 
                 lines = [line]
-                if line.rstrip().endswith(":") or line.rstrip().endswith("\\"):
-                    while True:
-                        next = input(".........")
-                        if not next.strip():
-                            break
-                        lines.append(next)
+                try:
+                    finished = codeop.compile_command(line)
+                except (SyntaxError):
+                    pass
+                else:
+                    if finished is None:
+                        while True:
+                            next = input(".........")
+                            if not next.strip():
+                                break
+                            lines.append(next)
 
                 code = "\n".join(lines) + "\n"
 
@@ -92,7 +103,6 @@ def main():
         sandbox.repl()
     except Exception as e:
         print(e)
-
 
 
 if __name__ == "__main__":

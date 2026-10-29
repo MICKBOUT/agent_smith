@@ -30,6 +30,9 @@ def main():
             exec(compile(code, "<sandbox>", "single"), namespace, namespace)
         except Exception as error:
             print(f"{type(error).__name__}: {error}", file=sys.stderr)
+            print(f"code: |{code}|", file=sys.stderr)
+            exit()
+
 
 if __name__ == "__main__":
     main()
