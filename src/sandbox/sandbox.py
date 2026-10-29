@@ -1,16 +1,20 @@
 import sys
 import subprocess
+import readline  # for better input
 
 import codeop
 
 from ..models.exception import SandboxError
 
-sandbox_name = "\033[1m\033[38;2;194;178;128msand\033[38;2;80;150;255mbox\033[0m> "
+RESET = "\001\033[0m\002"
+SAND = "\001\033[1;38;2;194;178;128m\002"
+BOX = "\001\033[1;38;2;80;150;255m\002"
+
+sandbox_name = f"{SAND}sand{BOX}box{RESET}> "
 
 
 class Sandbox:
     TIMEOUT = 3
-    MAX_CODE_LEN = 1024
 
     def repl(self) -> None:
         worker = subprocess.Popen(
@@ -47,10 +51,6 @@ class Sandbox:
                             lines.append(next)
 
                 code = "\n".join(lines) + "\n"
-
-                if len(code.encode("utf-8")) > self.MAX_CODE_LEN:
-                    print("SandboxError: code length limit exceeded", file=sys.stderr)
-                    continue
                 if worker.poll() is not None:
                     print("Sandbox worker stopped.", file=sys.stderr)
                     break
@@ -70,9 +70,6 @@ class Sandbox:
                 worker.wait()
 
     def execute(self, code: str) -> int:
-        if len(code.encode("utf-8")) > self.MAX_CODE_LEN:
-            raise SandboxError("lenght of code hit the limits!")
-
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "src.sandbox.worker", "--single"],

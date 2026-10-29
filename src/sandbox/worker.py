@@ -2,7 +2,6 @@ import sys
 
 from .sandbox_utils import get_new_namespace
 
-
 namespace = get_new_namespace()
 
 
@@ -30,8 +29,6 @@ def main():
             exec(compile(code, "<sandbox>", "single"), namespace, namespace)
         except Exception as error:
             print(f"{type(error).__name__}: {error}", file=sys.stderr)
-            print(f"code: |{code}|", file=sys.stderr)
-            exit()
 
 
 if __name__ == "__main__":
