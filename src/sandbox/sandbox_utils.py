@@ -27,7 +27,7 @@ def safe_import(
 
 def get_new_namespace() -> dict:
     return {
-        "builtins": SafeBuiltins.all
+        "__builtins__": SafeBuiltins.all
     }
 
 
