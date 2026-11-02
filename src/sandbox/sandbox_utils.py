@@ -4,6 +4,7 @@ from models.exception import SandboxError
 from typing import Any
 Builtins = dict[str, object]
 NameSpace = dict[str, Builtins]
+Jsp = Any  # me sert a changer plus tard
 
 
 def safe_import(
