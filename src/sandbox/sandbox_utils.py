@@ -134,4 +134,5 @@ class SafeImports:
         "re",
         "collections",
         "itertools",
+        "functools"
     })
