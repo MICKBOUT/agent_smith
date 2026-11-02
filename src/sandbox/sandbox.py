@@ -7,17 +7,23 @@ import select
 import time
 
 from models.exception import SandboxError
+from models.models_public import SandboxConfig
+
 from .sandbox_utils import Jsp
 
 
 class Sandbox:
     """Basic class for sandboxing and executing python code."""
-    TIMEOUT = 3
 
     RESET = "\001\033[0m\002"
     SAND = "\001\033[1;38;2;194;178;128m\002"
     BOX = "\001\033[1;38;2;80;150;255m\002"
     NAME = f"{SAND}sand{BOX}box{RESET}> "
+
+    def __init__(self, config: SandboxConfig) -> None:
+        self.config = config
+        self.timeout = config.max_execution_time_seconds
+        self.authorized_imports = config.authorized_imports
 
     def repl(self) -> None:
         """
@@ -103,7 +109,7 @@ class Sandbox:
                 [parent_control], [], [], 0.1)
 
             if not readable:
-                if time.time() - runtime > Sandbox.TIMEOUT:
+                if time.time() - runtime > self.timeout:
                     worker.kill()
                     worker.wait()
                     raise SandboxError("TimeoutExpired!")
@@ -138,7 +144,7 @@ class Sandbox:
                 input=code,
                 capture_output=True,
                 text=True,
-                timeout=self.TIMEOUT
+                timeout=self.timeout
             )
         except subprocess.TimeoutExpired:
             raise SandboxError("TimeoutExpired!")
@@ -154,7 +160,8 @@ class Sandbox:
 
 def main() -> None:
     """Main function for uv run sandbox command."""
-    sandbox = Sandbox()
+    config_exemple = SandboxConfig()  # default factories in all fields.
+    sandbox = Sandbox(config_exemple)
 
     # with open(".dev/suspicious_code.py", "r") as f:
     #     code = f.read()
