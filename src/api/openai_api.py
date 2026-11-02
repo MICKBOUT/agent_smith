@@ -1,11 +1,16 @@
 import os
-
-from openai import OpenAI
 from functools import lru_cache
 
-from ..config import SYSTEM_PROMPT_v0, DEFAULT_PROVIDER
+from openai import OpenAI
+
+from ..config import (
+    DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN,
+    DEFAULT_PROVIDER, DEFAULT_MAX_TRY,
+    SYSTEM_PROMPT_v0
+)
 from ..utils.enum import LLMProvider
-from ..models.exception import NoCodeBlockFound
+from ..utils.misc import getTest
+from ..models.exception import NoCodeBlockFound, NoneMessageError
 from ..models.models_public import MBPPTaskInput
 
 
@@ -23,14 +28,16 @@ def getAPIkey(provider: LLMProvider) -> str:
     return API_KEY
 
 
-def getClient(provider: LLMProvider) -> OpenAI:
+def getClient(provider: LLMProvider = DEFAULT_PROVIDER) -> OpenAI:
     return OpenAI(
         base_url=provider.value.URL,
         api_key=getAPIkey(provider),
+        max_retries=0,
+        timeout=DEFAULT_REQUEST_TIMEOUT
     )
 
 
-def printModelslst(client: OpenAI) -> None:
+def printModelslst(client: OpenAI = getClient()) -> None:
     models = [m.id for m in client.models.list()]
     for model in models:
         print(model)
@@ -47,32 +54,40 @@ def extractCode(message: str) -> str:
     return message[start:end].strip()
 
 
-def genCode(client: OpenAI, llm_provider: LLMProvider, question: MBPPTaskInput, max_retries: int = 3) -> str:
-    task_text, func_def = question.task_definition, question.function_definition
-
+def genCode(client: OpenAI, llm_provider: LLMProvider, question: MBPPTaskInput, max_try) -> tuple[OpenAI.ChatCompletion, str]:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT_v0},
-        {"role": "user", "content": f"{task_text} Function Definition: '{func_def}'"},
+        {
+            "role": "user",
+            "content": f"{question.task_definition}\n"
+            f"Function Definition: '{question.function_definition}'\n"
+            f"assert tests: {getTest(question)}"
+        },
     ]
-    print(messages[1]["content"])
-    for attempt in range(max_retries + 1):
-        r = client.chat.completions.create(
+    for attempt in range(max_try):
+        chat_completion = client.chat.completions.create(
             model=llm_provider.value.DEFAULT_MODEL,
             messages=messages,
             stop=["<end_code>"],
-            max_tokens=1500,
-            temperature=0.2,
+            max_tokens=DEFAULT_MAX_TOKEN,
+            temperature=0.2
         )
-        message = r.choices[0].message.content
-        if not isinstance(message, str):
-            raise ValueError("The model returned an empty or non-text response")
+        message = chat_completion.choices[0].message.content
 
         try:
-            return extractCode(message)
-        except NoCodeBlockFound as e:
-            if attempt == max_retries:
+            if not isinstance(message, str):
+                raise NoneMessageError
+            extracted_message = extractCode(message)
+            return chat_completion, extracted_message
+
+        except NoneMessageError:
+            print("[LOG] None Message RETRY", flush=True)
+            if attempt == max_try:
                 raise
-            print(message)
+        except NoCodeBlockFound as e:
+            print("[LOG] No CodeBlock Found", flush=True)
+            if attempt == max_try:
+                raise
             messages.append({"role": "assistant", "content": message})
             messages.append({
                 "role": "user",
@@ -81,26 +96,15 @@ def genCode(client: OpenAI, llm_provider: LLMProvider, question: MBPPTaskInput, 
             print(message)
 
 
-def addTest(code: str, question: MBPPTaskInput) -> str:
-    code += '\n'
-    for test_import in question.test_imports:
-        code += test_import + '\n'
-    code += '\n'
-    for assert_test in question.test_list:
-        code += assert_test + '\n'
-
-    return code
-
-
-def generateSandboxReadyCode(question: MBPPTaskInput, llm_provider: LLMProvider = DEFAULT_PROVIDER) -> str:
+def generateSandboxReadyCode(question: MBPPTaskInput, llm_provider: LLMProvider = DEFAULT_PROVIDER, max_try: int = DEFAULT_MAX_TRY) -> tuple[OpenAI.ChatCompletion, str]:
     # client http so regenerate each time for connection timeout issue
     with getClient(llm_provider) as client:
-        llm_code = genCode(client, llm_provider, question)
-    code = addTest(llm_code, question)
-    return code
+        chat_completion, llm_code = genCode(client, llm_provider, question, max_try=max_try)
+    return chat_completion, llm_code
 
 
 if __name__ == "__main__":
     from ..utils.random_question import getRandoMBPP
-    code = generateSandboxReadyCode(getRandoMBPP())
+    question = getRandoMBPP()
+    code = generateSandboxReadyCode(question)
     print(code)

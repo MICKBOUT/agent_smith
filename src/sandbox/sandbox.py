@@ -1,6 +1,6 @@
 import sys
 import subprocess
-import readline  # for better input
+# import readline  # for better input
 
 import codeop
 
@@ -24,7 +24,6 @@ class Sandbox:
             stderr=None,
             text=True,
         )
-
         try:
             while True:
                 import time

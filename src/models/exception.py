@@ -3,6 +3,11 @@ class NoCodeBlockFound(Exception):
         super().__init__(message)
 
 
+class NoneMessageError(Exception):
+    def __init__(self, message: str = "The model returned an empty or None message"):
+        super().__init__(message)
+
+
 class SandboxError(Exception):
     RED, BOLD, RESET = "\033[31m", "\033[1m", "\033[0m"
 

@@ -1,3 +1,5 @@
+from .openai_api import generateSandboxReadyCode
+
 __all__ = ["generateSandboxReadyCode"]
 
 # fix: this is needed if the code has a Runtime warning 'src.api.openai_api' found in sys.modules''
