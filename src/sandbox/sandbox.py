@@ -2,8 +2,12 @@ import sys
 import subprocess
 import codeop
 import readline  # noqa, for better input, do not delete
+import socket
+import select
+import time
 
 from models.exception import SandboxError
+from .sandbox_utils import Jsp
 
 
 class Sandbox:
@@ -19,18 +23,24 @@ class Sandbox:
         """
         launch an interactive sandboxed REPL.
         """
+        parent_control, worker_control = socket.socketpair()
+
         worker = subprocess.Popen(
-            [sys.executable, "-u", "-m", "sandbox.worker"],
+            [
+                sys.executable, "-u", "-m", "sandbox.worker",
+                "--control-fd", str(worker_control.fileno())
+            ],
             stdin=subprocess.PIPE,
             stdout=None,
             stderr=None,
             text=True,
+            pass_fds=(worker_control.fileno(),),
         )
+
+        worker_control.close()
 
         try:
             while True:
-                import time
-                time.sleep(0.01)  # fix denfoire a changer le plus vite possible
 
                 line = input(Sandbox.NAME)
 
@@ -59,6 +69,9 @@ class Sandbox:
 
                 worker.stdin.write(code + "\n")
                 worker.stdin.flush()
+
+                self._wait_return_code(parent_control, worker)
+
         except EOFError:
             pass
         except KeyboardInterrupt:
@@ -70,6 +83,44 @@ class Sandbox:
                 worker.stdin.close()
             if worker.poll() is None:
                 worker.wait()
+
+    def _wait_return_code(self, parent_control: Jsp, worker: Jsp) -> int:
+        """
+        This function wait and get the return code
+        from a python code given in the REPL
+
+        Returns:
+            0: line executed without error
+            1: line executed with one Exception
+            None: if an Exception is raised
+
+        Raises:
+            SandboxError: if a timeout occurs
+        """
+        runtime = time.time()
+        while True:
+            readable, _, _ = select.select(
+                [parent_control], [], [], 0.1)
+
+            if not readable:
+                if time.time() - runtime > Sandbox.TIMEOUT:
+                    worker.kill()
+                    worker.wait()
+                    raise SandboxError("TimeoutExpired!")
+                if worker.poll() is not None:
+                    print("Worker stopped.", file=sys.stderr)
+                    break
+                continue
+
+            status = parent_control.recv(1)
+
+            if status == b"\x00":
+                return 0
+            elif status == b"\x01":
+                return 1
+            elif status == b"":
+                return None
+            break
 
     def execute(self, code: str) -> int:
         """
