@@ -5,7 +5,10 @@ from .sandbox_utils import get_new_namespace
 namespace = get_new_namespace()
 
 
-def main():
+def main() -> None:
+    """
+    Main execution line for the REPL worker.
+    """
     if len(sys.argv) > 1 and sys.argv[1] == "--single":
         code = sys.stdin.read()
         exec(code, namespace, namespace)

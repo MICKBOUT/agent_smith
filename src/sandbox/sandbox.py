@@ -1,22 +1,24 @@
 import sys
 import subprocess
-import readline  # for better input
-
 import codeop
+import readline  # noqa, for better input, do not delete
 
-from ..models.exception import SandboxError
-
-RESET = "\001\033[0m\002"
-SAND = "\001\033[1;38;2;194;178;128m\002"
-BOX = "\001\033[1;38;2;80;150;255m\002"
-
-sandbox_name = f"{SAND}sand{BOX}box{RESET}> "
+from models.exception import SandboxError
 
 
 class Sandbox:
+    """Basic class for sandboxing and executing python code."""
     TIMEOUT = 3
 
+    RESET = "\001\033[0m\002"
+    SAND = "\001\033[1;38;2;194;178;128m\002"
+    BOX = "\001\033[1;38;2;80;150;255m\002"
+    NAME = f"{SAND}sand{BOX}box{RESET}> "
+
     def repl(self) -> None:
+        """
+        launch an interactive sandboxed REPL.
+        """
         worker = subprocess.Popen(
             [sys.executable, "-u", "-m", "src.sandbox.worker"],
             stdin=subprocess.PIPE,
@@ -30,7 +32,7 @@ class Sandbox:
                 import time
                 time.sleep(0.01)  # fix denfoire a changer le plus vite possible
 
-                line = input(sandbox_name)
+                line = input(Sandbox.NAME)
 
                 if line.strip() == "exit":
                     break
@@ -70,6 +72,15 @@ class Sandbox:
                 worker.wait()
 
     def execute(self, code: str) -> int:
+        """
+        Execute code in a sandboxed python environnement.
+
+        Args:
+            code (str): The python code to be executed.
+
+        Returns:
+            int: return_code, 0 if everything works.
+        """
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "src.sandbox.worker", "--single"],
@@ -90,12 +101,14 @@ class Sandbox:
         return result.returncode
 
 
-def main():
+def main() -> None:
+    """Main function for uv run sandbox command."""
     sandbox = Sandbox()
 
     # with open(".dev/suspicious_code.py", "r") as f:
     #     code = f.read()
     # sandbox.execute(code)
+
     try:
         sandbox.repl()
     except Exception as e:

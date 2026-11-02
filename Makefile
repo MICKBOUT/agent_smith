@@ -20,7 +20,7 @@ lint: install
 
 lint-strict: install
 	uv run flake8 . $(EXCLUDE_LINT)
-	uv run mypy . --strict $(EXCLUDE_LINT)
+	uv run mypy . --strict $(EXCLUDE_LINT)	
 
 clean:
 	uv clean
