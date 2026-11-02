@@ -20,7 +20,7 @@ class Sandbox:
         launch an interactive sandboxed REPL.
         """
         worker = subprocess.Popen(
-            [sys.executable, "-u", "-m", "src.sandbox.worker"],
+            [sys.executable, "-u", "-m", "sandbox.worker"],
             stdin=subprocess.PIPE,
             stdout=None,
             stderr=None,
@@ -57,7 +57,7 @@ class Sandbox:
                     print("Sandbox worker stopped.", file=sys.stderr)
                     break
 
-                worker.stdin.write(str(len(code)) + "\n" + code)
+                worker.stdin.write(code + "\n")
                 worker.stdin.flush()
         except EOFError:
             pass
@@ -83,7 +83,7 @@ class Sandbox:
         """
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "src.sandbox.worker", "--single"],
+                [sys.executable, "-m", "sandbox.worker", "--single"],
                 input=code,
                 capture_output=True,
                 text=True,

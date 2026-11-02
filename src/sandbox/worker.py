@@ -15,23 +15,28 @@ def main() -> None:
         return
 
     while True:
-        header = sys.stdin.readline()
-        if not header:
-            break
+        lines = []
+        while True:
+            line = sys.stdin.readline()
+            if not line:
+                break
+            if line == "\n":
+                break
+            lines.append(line)
 
-        try:
-            code_length = int(header)
-        except ValueError:
-            break
+        if not lines:
+            if not line:
+                break
+            continue
 
-        code = sys.stdin.read(code_length)
-        if len(code) != code_length:
-            break
-
+        code = "".join(lines)
         try:
             exec(compile(code, "<sandbox>", "single"), namespace, namespace)
         except Exception as error:
             print(f"{type(error).__name__}: {error}", file=sys.stderr)
+
+        if not line:
+            break
 
 
 if __name__ == "__main__":

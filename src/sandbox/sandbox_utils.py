@@ -1,4 +1,4 @@
-from ..models.exception import SandboxError
+from models.exception import SandboxError
 
 # Typing
 from typing import Any
