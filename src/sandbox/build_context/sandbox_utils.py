@@ -1,10 +1,18 @@
-from models.exception import SandboxError
+# from models.exception import SandboxError
 
 # Typing
 from typing import Any
 Builtins = dict[str, object]
 NameSpace = dict[str, Builtins]
-Jsp = Any  # me sert a changer plus tard
+
+
+class SandboxError(Exception):
+    RED, BOLD, RESET = "\033[31m", "\033[1m", "\033[0m"
+
+    def __init__(self, message: str):
+        super().__init__(
+            f"{self.RED}{self.BOLD}SandboxError {self.RESET}: {message}"
+        )
 
 
 def create_safe_import(authorized_imports: list[str]) -> callable:
@@ -64,7 +72,9 @@ def get_new_namespace(authorized_imports: list[str]) -> NameSpace:
         "__builtins__": SafeBuiltins.all
     }
 
-    without_import["__builtins__"].update({"__import__": create_safe_import(authorized_imports)})
+    without_import["__builtins__"].update(
+        {"__import__": create_safe_import(authorized_imports)}
+    )
 
     return without_import
 
@@ -127,19 +137,18 @@ class SafeBuiltins:
         "__name__": __name__
     }
 
-
-class SafeImports:
-    """This class contain a dict `all`.
-    it contain all the allowed modules."""
-    all = frozenset({
-        "math",
-        "statistics",
-        "decimal",
-        "fractions",
-        "json",
-        "datetime",
-        "re",
-        "collections",
-        "itertools",
-        "functools"
-    })
+# UNUSED
+# class SafeImports:
+#     """This class contain a dict `all`.
+#     it contain all the allowed modules."""
+#     all = frozenset({
+#         "math",
+#         "statistics",
+#         "decimal",
+#         "fractions",
+#         "json",
+#         "datetime",
+#         "re",
+#         "collections",
+#         "itertools",
+#     })

@@ -6,10 +6,14 @@ import socket
 import select
 import time
 
+from typing import Any
+
 from models.exception import SandboxError
 from models.models_public import SandboxConfig
+from .docker_init import run_docker_single
 
-from .sandbox_utils import Jsp
+
+Jsp = Any
 
 
 class Sandbox:
@@ -130,52 +134,70 @@ class Sandbox:
                 return None
             break
 
-    def execute(self, code: str) -> int:
+    def execute(self, code: str) -> subprocess.CalledProcessError | None:
         """
         Execute code in a sandboxed python environnement.
 
         Args:
             code (str): The python code to be executed.
-
-        Returns:
-            int: return_code, 0 if everything works.
         """
         try:
-            result = subprocess.run(
-                [sys.executable, "-m", "sandbox.worker", " ".join(self.authorized_imports), "--single"],
-                input=code,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout
+            return_code = run_docker_single(
+                [" ".join(self.authorized_imports), "--single"],
+                code
             )
-        except subprocess.TimeoutExpired:
+
+            if return_code != 0:
+                print(f"Container failed with exit code {return_code}.")
+
+            # UNCOMMENT FOR SIMPLE ISOLATION WITHOUT DOCKER
+            # result = subprocess.run(
+            #     [sys.executable, "-m", "sandbox.worker", " ".join(self.authorized_imports), "--single"],
+            #     input=code,
+            #     capture_output=True,
+            #     text=True,
+            #     timeout=self.timeout
+            # )
+
+        except subprocess.TimeoutExpired:  # obsolete
             raise SandboxError("TimeoutExpired!")
+        except subprocess.CalledProcessError as err:
+            return err
 
-        if result.stdout:
-            print(result.stdout, end="")
+        return None
 
-        if result.returncode != 0:
-            print(result.stderr, end="", file=sys.stderr)
+        # if result.stdout:
+        #     print(result.stdout, end="")
 
-        return result.returncode
+        # if result.returncode != 0:
+        #     print(result.stderr, end="", file=sys.stderr)
+
+        # return result.returncode
 
 
 def main() -> None:
     """Main function for uv run sandbox command."""
+
     config_exemple = SandboxConfig(
         max_execution_time_seconds=3,
         authorized_imports=["math", "numpy"]
     )  # default factories in all fields.
     sandbox = Sandbox(config_exemple)
 
-    # with open(".dev/suspicious_code.py", "r") as f:
-    #     code = f.read()
-    # sandbox.execute(code)
+    with open(".dev/suspicious_code.py", "r") as f:
+        code = f.read()
 
-    try:
-        sandbox.repl()
-    except Exception as e:
-        print(e)
+    ret = sandbox.execute(code)
+    if ret is None:
+        print("Successfully executed.")
+    else:
+        print(f"Failed with exit code {ret.returncode}.")
+        print(f"{ret.stderr}")
+
+    # try:
+    #     sandbox.repl()
+    # except Exception as e:
+    #     print(e)
 
 
 if __name__ == "__main__":
