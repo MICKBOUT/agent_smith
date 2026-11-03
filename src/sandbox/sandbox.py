@@ -146,6 +146,7 @@ class Sandbox:
         try:
             result = self.container.run(
                 [" ".join(self.authorized_imports), "--single"],
+                self.timeout,
                 code
             )
 

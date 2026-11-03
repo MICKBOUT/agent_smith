@@ -13,7 +13,7 @@ class Container:
             check=True,
         )
 
-    def run(self, args: list[str], code: str) -> None:
+    def run(self, args: list[str], timeout: int, code: str) -> None:
         print("Lancement du conteneur...")
         result = subprocess.run(
             [
@@ -25,6 +25,7 @@ class Container:
             text=True,
             capture_output=True,
             check=True,
+            timeout=timeout
         )
 
         return result
