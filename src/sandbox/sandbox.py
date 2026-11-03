@@ -34,7 +34,8 @@ class Sandbox:
         worker = subprocess.Popen(
             [
                 sys.executable, "-u", "-m", "sandbox.worker",
-                "--control-fd", str(worker_control.fileno())
+                " ".join(self.authorized_imports), "--control-fd",
+                str(worker_control.fileno()),
             ],
             stdin=subprocess.PIPE,
             stdout=None,
@@ -112,6 +113,7 @@ class Sandbox:
                 if time.time() - runtime > self.timeout:
                     worker.kill()
                     worker.wait()
+                    parent_control.close()
                     raise SandboxError("TimeoutExpired!")
                 if worker.poll() is not None:
                     print("Worker stopped.", file=sys.stderr)
@@ -140,7 +142,7 @@ class Sandbox:
         """
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "sandbox.worker", "--single"],
+                [sys.executable, "-m", "sandbox.worker", " ".join(self.authorized_imports), "--single"],
                 input=code,
                 capture_output=True,
                 text=True,
@@ -160,7 +162,10 @@ class Sandbox:
 
 def main() -> None:
     """Main function for uv run sandbox command."""
-    config_exemple = SandboxConfig()  # default factories in all fields.
+    config_exemple = SandboxConfig(
+        max_execution_time_seconds=3,
+        authorized_imports=["math", "numpy"]
+    )  # default factories in all fields.
     sandbox = Sandbox(config_exemple)
 
     # with open(".dev/suspicious_code.py", "r") as f:
