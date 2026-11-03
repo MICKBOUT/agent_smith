@@ -6,7 +6,7 @@ from openai import OpenAI
 from ..config import (
     DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN,
     DEFAULT_PROVIDER, DEFAULT_MAX_TRY,
-    SYSTEM_PROMPT_v0
+    SYSTEM_PROMPT_v0, DEFAULT_TEMPERATURE
 )
 from ..utils.enum import LLMProvider
 from ..utils.misc import getTest
@@ -28,83 +28,92 @@ def getAPIkey(provider: LLMProvider) -> str:
     return API_KEY
 
 
-def getClient(provider: LLMProvider = DEFAULT_PROVIDER) -> OpenAI:
-    return OpenAI(
-        base_url=provider.value.URL,
-        api_key=getAPIkey(provider),
-        max_retries=0,
-        timeout=DEFAULT_REQUEST_TIMEOUT
-    )
+class ChatApi():
+    def __init__(self, question: MBPPTaskInput, llm_provider: LLMProvider = DEFAULT_PROVIDER):
+        self.llm_provider = llm_provider
+        self.setQuestion(question)
 
-
-def printModelslst(client: OpenAI = getClient()) -> None:
-    models = [m.id for m in client.models.list()]
-    for model in models:
-        print(model)
-
-
-def extractCode(message: str) -> str:
-    start = message.find("```python")
-    if start < 0:
-        raise NoCodeBlockFound("no ```python block")
-    start += len("```python")
-    end = message.find("```", start)
-    if end < 0:
-        raise NoCodeBlockFound("unclosed code block")
-    return message[start:end].strip()
-
-
-def genCode(client: OpenAI, llm_provider: LLMProvider, question: MBPPTaskInput, max_try) -> tuple[OpenAI.ChatCompletion, str]:
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT_v0},
-        {
-            "role": "user",
-            "content": f"{question.task_definition}\n"
-            f"Function Definition: '{question.function_definition}'\n"
-            f"assert tests: {getTest(question)}"
-        },
-    ]
-    for attempt in range(max_try):
-        chat_completion = client.chat.completions.create(
-            model=llm_provider.value.DEFAULT_MODEL,
-            messages=messages,
-            stop=["<end_code>"],
-            max_tokens=DEFAULT_MAX_TOKEN,
-            temperature=0.2
-        )
-        message = chat_completion.choices[0].message.content
-
-        try:
-            if not isinstance(message, str):
-                raise NoneMessageError
-            extracted_message = extractCode(message)
-            return chat_completion, extracted_message
-
-        except NoneMessageError:
-            print("[LOG] None Message RETRY", flush=True)
-            if attempt == max_try:
-                raise
-        except NoCodeBlockFound as e:
-            print("[LOG] No CodeBlock Found", flush=True)
-            if attempt == max_try:
-                raise
-            messages.append({"role": "assistant", "content": message})
-            messages.append({
+    def setQuestion(self, question: MBPPTaskInput) -> None:
+        "Change the question and reset the conversation"
+        self.question = question
+        self.messages = [
+            {"role": "system", "content": SYSTEM_PROMPT_v0},
+            {
                 "role": "user",
-                "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
-            })
-            print(message)
+                "content": f"{self.question.task_definition}\n"
+                f"Function Definition: '{self.question.function_definition}'\n"
+                f"assert tests: {getTest(self.question)}"
+            },
+        ]
 
+    def _getClient(self) -> OpenAI:
+        return OpenAI(
+            base_url=self.llm_provider.value.URL,
+            api_key=getAPIkey(self.llm_provider),
+            max_retries=0,
+            timeout=DEFAULT_REQUEST_TIMEOUT
+        )
 
-def generateSandboxReadyCode(question: MBPPTaskInput, llm_provider: LLMProvider = DEFAULT_PROVIDER, max_try: int = DEFAULT_MAX_TRY) -> tuple[OpenAI.ChatCompletion, str]:
-    # client http so regenerate each time for connection timeout issue
-    with getClient(llm_provider) as client:
-        chat_completion, llm_code = genCode(client, llm_provider, question, max_try=max_try)
-    return chat_completion, llm_code
+    def printModelslst(self, client: OpenAI) -> None:
+        models = [m.id for m in client.models.list()]
+        for model in models:
+            print(model)
+
+    @staticmethod
+    def extractCode(message: str) -> str:
+        start = message.find("```python")
+        if start < 0:
+            raise NoCodeBlockFound("no ```python block")
+        start += len("```python")
+        end = message.find("```", start)
+        if end < 0:
+            raise NoCodeBlockFound("unclosed code block")
+        return message[start:end].strip()
+
+    def _genCode(self, client: OpenAI, max_try) -> str:
+        for attempt in range(max_try):
+            chat_completion = client.chat.completions.create(
+                model=self.llm_provider.value.DEFAULT_MODEL,
+                messages=self.messages,
+                stop=["<end_code>"],
+                max_tokens=DEFAULT_MAX_TOKEN,
+                temperature=DEFAULT_TEMPERATURE
+            )
+
+            message = chat_completion.choices[0].message.content
+            try:
+                if not isinstance(message, str):
+                    raise NoneMessageError
+                extracted_message = self.extractCode(message)
+                return extracted_message
+
+            except NoneMessageError:
+                print("[LOG] None Message RETRY", flush=True)
+                if attempt == max_try:
+                    raise
+            except NoCodeBlockFound as e:
+                print("[LOG] No CodeBlock Found", flush=True)
+                if attempt == max_try:
+                    raise
+                self.messages.append({"role": "assistant", "content": message})
+                self.messages.append({
+                    "role": "user",
+                    "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
+                })
+                print(message)
+
+    def generateSandboxCode(self, max_try: int = DEFAULT_MAX_TRY) -> tuple[OpenAI.ChatCompletion, str]:
+        # client http so regenerate each time for connection timeout issue
+        with self._getClient() as client:
+            llm_code = self._genCode(client, max_try=max_try)
+        return llm_code
+
+    def addLog(self, message: str) -> None:
+        self.messages.append({"role": "system", "content": message})
+        self.messages.append({"role": "user", "content": "the test fail in the sandbox, send a new code that is complient to the test and pass the assert."})
 
 
 if __name__ == "__main__":
     from ..utils.random_question import getRandoMBPP
-    question = getRandoMBPP()
-    code = generateSandboxReadyCode(question)
-    print(code)
+    chat = ChatApi(getRandoMBPP())
+    chat.printModelslst(chat._getClient())
