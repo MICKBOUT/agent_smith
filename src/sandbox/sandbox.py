@@ -25,11 +25,24 @@ class Sandbox:
     NAME = f"{SAND}sand{BOX}box{RESET}> "
 
     def __init__(self, config: SandboxConfig) -> None:
+        """
+        init the config and init the container.
+
+        Args:
+            config: The sandbox config.
+        """
         self.config = config
         self.timeout = config.max_execution_time_seconds
         self.authorized_imports = config.authorized_imports
 
         self.container = Container()
+
+    def new_repl(self) -> None:
+        """
+        launch an interactive sandboxed and Docker isolated REPL.
+        """
+
+        self.container.run_interactive()
 
     def repl(self) -> None:
         """
@@ -136,12 +149,19 @@ class Sandbox:
                 return None
             break
 
-    def execute(self, code: str) -> subprocess.CalledProcessError | None:
+    def execute(self, code: str) -> subprocess.CalledProcessError | subprocess.CompletedProcess:
         """
         Execute code in a sandboxed python environnement.
 
         Args:
             code (str): The python code to be executed.
+
+        Returns:
+            CalledProcessError: result of an error raised during execution
+            CompletedProcess: result of a successful execution.
+
+        Raises:
+            SandboxError: when the code timeout.
         """
         try:
             result = self.container.run(
