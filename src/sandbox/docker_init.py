@@ -18,7 +18,18 @@ class Container:
             check=True,
         )
 
-    def run(self, args: list[str], timeout: int, code: str) -> None:
+    def run(self, args: list[str], code: str) -> subprocess.CompletedProcess:
+        """
+        this method can execute a single bloc of python code
+        in a isolated environnment.
+
+        Args:
+            args: list of arguments for the child process.
+            code: the code to be executed.
+
+        Return:
+            CompletedProcess: the result of the process.
+        """
         print("Lancement du conteneur...")
         result = subprocess.run(
             [
@@ -30,7 +41,6 @@ class Container:
             text=True,
             capture_output=True,
             check=True,
-            timeout=timeout
         )
 
         return result
