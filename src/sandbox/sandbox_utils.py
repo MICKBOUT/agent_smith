@@ -70,7 +70,7 @@ class SafeBuiltins:
 
         # Tests et conversions
         "all": all,
-        "map": all,
+        "map": map,
         "any": any,
         "isinstance": isinstance,
 
