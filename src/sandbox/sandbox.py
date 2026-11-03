@@ -166,14 +166,6 @@ class Sandbox:
 
         return None
 
-        # if result.stdout:
-        #     print(result.stdout, end="")
-
-        # if result.returncode != 0:
-        #     print(result.stderr, end="", file=sys.stderr)
-
-        # return result.returncode
-
 
 def main() -> None:
     """Main function for uv run sandbox command."""

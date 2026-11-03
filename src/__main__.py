@@ -3,10 +3,11 @@ from .sandbox.sandbox import Sandbox
 from .utils.random_question import getRandoMBPP
 from .utils.misc import addTest
 from .config import DEFAULT_MAX_ITERATION
+from .models.models_public import SandboxConfig
 
 
 def generate_mbpp():
-    sandbox = Sandbox()
+    sandbox = Sandbox(SandboxConfig())
     question = getRandoMBPP()
     chat = ChatApi(question=question)
 
@@ -17,7 +18,7 @@ def generate_mbpp():
         code = chat.generateSandboxCode()
         code_and_test = addTest(code, question)
         result = sandbox.execute(code_and_test)
-        if result.returncode != 0:
+        if result:
             print("\033[31mError in the code\033[0m")
             chat.addLog(result.stderr)
         else:

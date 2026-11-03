@@ -8,7 +8,7 @@ def run_docker_single(args: list[str], code: str = "") -> None:
     build_dir = Path(__file__).resolve().parent / "build_context"
 
     subprocess.run(
-        ["docker", "build", "--tag", IMAGE_NAME, str(build_dir)],
+        ["docker", "build", "--quiet", "--tag", IMAGE_NAME, str(build_dir)],
         check=True,
     )
 
