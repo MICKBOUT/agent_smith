@@ -45,6 +45,8 @@ class ChatApi():
                 f"assert tests: {getTest(self.question)}"
             },
         ]
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
 
     def _getClient(self) -> OpenAI:
         return OpenAI(
@@ -72,7 +74,7 @@ class ChatApi():
 
     def _genCode(self, client: OpenAI, max_try) -> str:
         for attempt in range(max_try):
-            chat_completion = client.chat.completions.create(
+            response = client.chat.completions.create(
                 model=self.llm_provider.value.DEFAULT_MODEL,
                 messages=self.messages,
                 stop=["<end_code>"],
@@ -80,7 +82,9 @@ class ChatApi():
                 temperature=DEFAULT_TEMPERATURE
             )
 
-            message = chat_completion.choices[0].message.content
+            message = response.choices[0].message.content
+            self.total_input_tokens += response.usage.prompt_tokens
+            self.total_output_tokens += response.usage.completion_tokens
             try:
                 if not isinstance(message, str):
                     raise NoneMessageError
@@ -88,11 +92,11 @@ class ChatApi():
                 return extracted_message
 
             except NoneMessageError:
-                print("[LOG] None Message RETRY", flush=True)
+                print("\033[34m[LOG]\033[0m None Message RETRY", message, flush=True)
                 if attempt == max_try:
                     raise
             except NoCodeBlockFound as e:
-                print("[LOG] No CodeBlock Found", flush=True)
+                print("\033[34m[LOG]\033[0m No CodeBlock Found\n", message, flush=True)
                 if attempt == max_try:
                     raise
                 self.messages.append({"role": "assistant", "content": message})
@@ -100,7 +104,6 @@ class ChatApi():
                     "role": "user",
                     "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
                 })
-                print(message)
 
     def generateSandboxCode(self, max_try: int = DEFAULT_MAX_TRY) -> tuple[OpenAI.ChatCompletion, str]:
         # client http so regenerate each time for connection timeout issue

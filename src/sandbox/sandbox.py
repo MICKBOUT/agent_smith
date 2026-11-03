@@ -86,7 +86,7 @@ class Sandbox:
         if result.returncode != 0:
             print(result.stderr, end="", file=sys.stderr)
 
-        return result.returncode
+        return result
 
 
 def main():
