@@ -7,59 +7,66 @@ NameSpace = dict[str, Builtins]
 Jsp = Any  # me sert a changer plus tard
 
 
-def safe_import(
-    name,
-    globals=None,
-    locals=None,
-    fromlist=(),
-    level=0,
-) -> Any:
-    """
-    Redefinition of the builtin import function.
-    Allows users to import only modules defined in SafeImports.all.
+def create_safe_import(authorized_imports: list[str]) -> callable:
+    def safe_import(
+        name,
+        globals=None,
+        locals=None,
+        fromlist=(),
+        level=0,
+    ) -> Any:
+        """
+        Redefinition of the builtin import function.
+        Allows users to import only modules defined in SafeImports.all.
 
-    Args:
-        name: Name of the module to import.
-        globals: Global namespace for the import.
-        locals: Local namespace for the import.
-        fromlist: Objects to import from the module.
-        level: Relative import level (must be 0).
+        Args:
+            name: Name of the module to import.
+            globals: Global namespace for the import.
+            locals: Local namespace for the import.
+            fromlist: Objects to import from the module.
+            level: Relative import level (must be 0).
 
-    Returns:
-        The imported module.
+        Returns:
+            The imported module.
 
-    Raises:
-        SandboxError: If the module is not allowed or a relative
-                      import is attempted.
-    """
+        Raises:
+            SandboxError: If the module is not allowed or a relative
+                        import is attempted.
+        """
 
-    if level != 0:
-        raise SandboxError("Relative imports are forbidden")
+        if level != 0:
+            raise SandboxError("Relative imports are forbidden")
 
-    if name not in SafeImports.all:
-        raise SandboxError(
-            f"Import of module '{name}' is not allowed!"
+        if name not in authorized_imports:
+            raise SandboxError(
+                f"Import of module '{name}' is not allowed!"
+            )
+
+        return __import__(
+            name,
+            globals,
+            locals,
+            fromlist,
+            level,
         )
 
-    return __import__(
-        name,
-        globals,
-        locals,
-        fromlist,
-        level,
-    )
+    return safe_import
 
 
-def get_new_namespace() -> NameSpace:
+def get_new_namespace(authorized_imports: list[str]) -> NameSpace:
     """
     function to get a new namespace.
 
     Returns:
         NameSpace: The new namespace.
     """
-    return {
+    without_import = {
         "__builtins__": SafeBuiltins.all
     }
+
+    without_import["__builtins__"].update({"__import__": create_safe_import(authorized_imports)})
+
+    return without_import
 
 
 class SafeBuiltins:
@@ -68,7 +75,6 @@ class SafeBuiltins:
     it contain all allowed builtins used in the sandbox.
     """
     all = {
-        "__import__": safe_import,
 
         # STDOUT # JSPPPP
         "print": print,
