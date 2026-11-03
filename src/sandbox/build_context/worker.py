@@ -1,7 +1,7 @@
 import sys
 import socket
 
-from .sandbox_utils import get_new_namespace
+from sandbox_utils import get_new_namespace
 
 
 def main() -> None:
