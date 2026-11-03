@@ -8,7 +8,7 @@ def main() -> None:
     """
     Main execution line for the REPL worker.
 
-    exemple of differents arguments.
+    exemple of differents sys.argv.
 
     "math numpy functools", "--single"
     "numpy random pandas", "--control-fd 5"
@@ -20,7 +20,7 @@ def main() -> None:
     else:
         return
 
-    if len(sys.argv) == 3 and sys.argv[2] == "--single":  # single_mode
+    if len(sys.argv) == 3 and sys.argv[2] == "--single":
         code = sys.stdin.read()
         exec(code, namespace, namespace)
         return

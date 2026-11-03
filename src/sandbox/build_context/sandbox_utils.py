@@ -1,5 +1,3 @@
-# from models.exception import SandboxError
-
 # Typing
 from typing import Any
 Builtins = dict[str, object]
@@ -7,15 +5,25 @@ NameSpace = dict[str, Builtins]
 
 
 class SandboxError(Exception):
+    """Exception for sandbox-related errors."""
     RED, BOLD, RESET = "\033[31m", "\033[1m", "\033[0m"
 
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         super().__init__(
             f"{self.RED}{self.BOLD}SandboxError {self.RESET}: {message}"
         )
 
 
 def create_safe_import(authorized_imports: list[str]) -> callable:
+    """
+    wrapper function to get the safe_import callable
+
+    Args:
+        authorized_imports: list of allowed python modules.
+
+    Returns:
+        callable: the safe import function
+    """
     def safe_import(
         name,
         globals=None,
@@ -64,6 +72,8 @@ def create_safe_import(authorized_imports: list[str]) -> callable:
 def get_new_namespace(authorized_imports: list[str]) -> NameSpace:
     """
     function to get a new namespace.
+    Args:
+        authorized_imports: list of allowed python modules.
 
     Returns:
         NameSpace: The new namespace.
@@ -86,10 +96,10 @@ class SafeBuiltins:
     """
     all = {
 
-        # STDOUT # JSPPPP
+        # STDOUT
         "print": print,
 
-        # Types fondamentaux
+        # basic types
         "bool": bool,
         "int": int,
         "float": float,
@@ -102,7 +112,7 @@ class SafeBuiltins:
         "set": set,
         "frozenset": frozenset,
 
-        # Itération et collections
+        # iteration and collections
         "len": len,
         "range": range,
         "enumerate": enumerate,
@@ -110,7 +120,7 @@ class SafeBuiltins:
         "reversed": reversed,
         "sorted": sorted,
 
-        # Calculs
+        # calculation
         "abs": abs,
         "min": min,
         "max": max,
@@ -119,12 +129,12 @@ class SafeBuiltins:
         "divmod": divmod,
         "pow": pow,
 
-        # Tests et conversions
+        # tests
         "all": all,
         "any": any,
         "isinstance": isinstance,
 
-        # Exceptions utiles
+        # exceptions
         "Exception": Exception,
         "ValueError": ValueError,
         "TypeError": TypeError,
@@ -132,23 +142,7 @@ class SafeBuiltins:
         "IndexError": IndexError,
         "KeyError": KeyError,
 
-        #  jsp si on garde ca sert a creer des classes.
+        # classes
         "__build_class__": __build_class__,
         "__name__": __name__
     }
-
-# UNUSED
-# class SafeImports:
-#     """This class contain a dict `all`.
-#     it contain all the allowed modules."""
-#     all = frozenset({
-#         "math",
-#         "statistics",
-#         "decimal",
-#         "fractions",
-#         "json",
-#         "datetime",
-#         "re",
-#         "collections",
-#         "itertools",
-#     })
