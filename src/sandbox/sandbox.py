@@ -10,7 +10,7 @@ from typing import Any
 
 from models.exception import SandboxError
 from models.models_public import SandboxConfig
-from .docker_init import run_docker_single
+from .docker_init import Container
 
 
 Jsp = Any
@@ -28,6 +28,8 @@ class Sandbox:
         self.config = config
         self.timeout = config.max_execution_time_seconds
         self.authorized_imports = config.authorized_imports
+
+        self.container = Container()
 
     def repl(self) -> None:
         """
@@ -142,29 +144,17 @@ class Sandbox:
             code (str): The python code to be executed.
         """
         try:
-            return_code = run_docker_single(
+            result = self.container.run(
                 [" ".join(self.authorized_imports), "--single"],
                 code
             )
-
-            if return_code != 0:
-                print(f"Container failed with exit code {return_code}.")
-
-            # UNCOMMENT FOR SIMPLE ISOLATION WITHOUT DOCKER
-            # result = subprocess.run(
-            #     [sys.executable, "-m", "sandbox.worker", " ".join(self.authorized_imports), "--single"],
-            #     input=code,
-            #     capture_output=True,
-            #     text=True,
-            #     timeout=self.timeout
-            # )
 
         except subprocess.TimeoutExpired:  # obsolete
             raise SandboxError("TimeoutExpired!")
         except subprocess.CalledProcessError as err:
             return err
 
-        return None
+        return result
 
 
 def main() -> None:
@@ -180,10 +170,11 @@ def main() -> None:
         code = f.read()
 
     ret = sandbox.execute(code)
-    if ret is None:
+    if ret.returncode == 0:
         print("Successfully executed.")
     else:
         print(f"Failed with exit code {ret.returncode}.")
+        print("========================================")
         print(f"{ret.stderr}")
 
     # try:
