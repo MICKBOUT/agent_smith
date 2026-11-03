@@ -23,7 +23,7 @@ class GeminiProvider(Provider):
 class OpenRouterProvider(Provider):
     API_KEY_NAME = "OPENROUTER_API_KEY"
     URL = "https://openrouter.ai/api/v1"
-    DEFAULT_MODEL = "poolside/laguna-s-2.1"
+    DEFAULT_MODEL = "dots-studio/dots-3-note-preview:free"
 
 
 class TogetherIaProvider(Provider):
