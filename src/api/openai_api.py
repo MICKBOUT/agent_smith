@@ -10,7 +10,7 @@ from ..config import (
 )
 from ..utils.enum import LLMProvider
 from ..utils.misc import getTest
-from ..models.exception import NoCodeBlockFound, NoneMessageError
+from ..models.exception import NoCodeBlockFound, NoneMessageError, MaxTryReachError
 from ..models.models_public import MBPPTaskInput
 
 
@@ -93,17 +93,14 @@ class ChatApi():
 
             except NoneMessageError:
                 print("\033[34m[LOG]\033[0m None Message RETRY", message, flush=True)
-                if attempt == max_try:
-                    raise
             except NoCodeBlockFound as e:
                 print("\033[34m[LOG]\033[0m No CodeBlock Found\n", message, flush=True)
-                if attempt == max_try:
-                    raise
                 self.messages.append({"role": "assistant", "content": message})
                 self.messages.append({
                     "role": "user",
                     "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
                 })
+        raise MaxTryReachError
 
     def generateSandboxCode(self, max_try: int = DEFAULT_MAX_TRY) -> tuple[OpenAI.ChatCompletion, str]:
         # client http so regenerate each time for connection timeout issue
