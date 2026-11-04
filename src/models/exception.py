@@ -15,3 +15,8 @@ class SandboxError(Exception):
         super().__init__(
             f"{self.RED}{self.BOLD}SandboxError {self.RESET}: {message}"
         )
+
+
+class MaxTryReachError(Exception):
+    def __init__(self, message: str = "The maximum number of exception has been reach"):
+        super().__init__(message)

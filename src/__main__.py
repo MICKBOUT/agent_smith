@@ -1,14 +1,16 @@
 from .api import ChatApi
 from .sandbox.sandbox import Sandbox
 from .utils.random_question import getRandoMBPP
-from .utils.misc import addTest
+from .utils.misc import addTest, rm_import_txt
 from .config import DEFAULT_MAX_ITERATION
 from .models.models_public import SandboxConfig
 
 
 def generate_mbpp():
-    sandbox = Sandbox(SandboxConfig())
     question = getRandoMBPP()
+    sandbox = Sandbox(SandboxConfig(
+        authorized_imports=rm_import_txt(question.test_imports)
+    ))
     chat = ChatApi(question=question)
 
     print(f"Id: {question.task_id}\n"
@@ -18,14 +20,17 @@ def generate_mbpp():
         code = chat.generateSandboxCode()
         code_and_test = addTest(code, question)
         result = sandbox.execute(code_and_test)
-        if result:
+        if result.returncode != 0:
             print("\033[31mError in the code\033[0m")
+            print("\033[34m[LOG]\033[0m", result.stderr, flush=True)
             chat.addLog(result.stderr)
         else:
             print("\033[32mDone\033[0m")
             print(f"total_input_tokens: {chat.total_input_tokens}")
             print(f"total_output_tokens: {chat.total_output_tokens}")
             break
+
+    
     print(code_and_test)
     print(f"total_input_tokens: {chat.total_input_tokens}")
     print(f"total_output_tokens: {chat.total_output_tokens}")
@@ -33,7 +38,6 @@ def generate_mbpp():
 
 def main() -> None:
     generate_mbpp()
-
 
 
 if __name__ == "__main__":

@@ -10,3 +10,7 @@ def getTest(question: MBPPTaskInput) -> str:
 
 def addTest(code: str, question: MBPPTaskInput) -> str:
     return "\n".join((code, getTest(question)))
+
+
+def rm_import_txt(modules: list[str]):
+    return [ell for ell in modules if ell[:7] == "import "]
