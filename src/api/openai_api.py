@@ -1,7 +1,7 @@
 import os
 from functools import lru_cache
 
-from openai import OpenAI
+import openai
 
 from ..config import (
     SYSTEM_PROMPT_v0, DEFAULT_TEMPERATURE, DEFAULT_MAX_TRY,
@@ -47,15 +47,16 @@ class ChatApi():
         self.total_input_tokens = 0
         self.total_output_tokens = 0
 
-    def _getClient(self) -> OpenAI:
-        return OpenAI(
+    def _getClient(self) -> openai.OpenAI:
+        return openai.OpenAI(
             base_url=self.llm_provider.value.URL,
             api_key=getAPIkey(self.llm_provider),
             max_retries=0,
+            # max_tokens=1500,
             timeout=DEFAULT_REQUEST_TIMEOUT
         )
 
-    def printModelslst(self, client: OpenAI) -> None:
+    def printModelslst(self, client: openai.OpenAI) -> None:
         models = [m.id for m in client.models.list()]
         for model in models:
             print(model)
@@ -71,15 +72,19 @@ class ChatApi():
             raise NoCodeBlockFound("unclosed code block")
         return message[start:end].strip()
 
-    def _genCode(self, client: OpenAI, max_try) -> str:
+    def _genCode(self, client: openai.OpenAI, max_try) -> str:
         for attempt in range(max_try):
-            response = client.chat.completions.create(
-                model=self.llm_provider.value.DEFAULT_MODEL,
-                messages=self.messages,
-                stop=["<end_code>"],
-                max_tokens=DEFAULT_MAX_TOKEN,
-                temperature=DEFAULT_TEMPERATURE
-            )
+            try:
+                response = client.chat.completions.create(
+                    model=self.llm_provider.value.DEFAULT_MODEL,
+                    messages=self.messages,
+                    stop=["<end_code>"],
+                    max_tokens=DEFAULT_MAX_TOKEN,
+                    temperature=DEFAULT_TEMPERATURE
+                )
+            except openai.RateLimitError:
+                print("\033[34m[LOG]\033[0m Change Model")
+                raise 
 
             message = response.choices[0].message.content
             self.total_input_tokens += response.usage.prompt_tokens
@@ -101,7 +106,7 @@ class ChatApi():
                 })
         raise MaxTryReachError
 
-    def generateSandboxCode(self, max_try: int = DEFAULT_MAX_TRY) -> tuple[OpenAI.ChatCompletion, str]:
+    def generateSandboxCode(self, max_try: int = DEFAULT_MAX_TRY) -> tuple[openai.OpenAI.ChatCompletion, str]:
         # client http so regenerate each time for connection timeout issue
         with self._getClient() as client:
             llm_code = self._genCode(client, max_try=max_try)

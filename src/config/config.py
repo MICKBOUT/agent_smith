@@ -13,5 +13,5 @@ DEFAULT_PROVIDER = LLMProvider.GROQ
 DEFAULT_MAX_TRY = 3
 DEFAULT_MAX_ITERATION = 3
 DEFAULT_REQUEST_TIMEOUT = 60  # in seconde / per request
-DEFAULT_MAX_TOKEN = 1500  # per request to the llm
+DEFAULT_MAX_TOKEN = 999  # per request to the llm
 DEFAULT_TEMPERATURE = 0.2
