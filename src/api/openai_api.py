@@ -4,9 +4,8 @@ from functools import lru_cache
 from openai import OpenAI
 
 from ..config import (
-    DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN,
-    DEFAULT_PROVIDER, DEFAULT_MAX_TRY,
-    SYSTEM_PROMPT_v0, DEFAULT_TEMPERATURE
+    SYSTEM_PROMPT_v0, DEFAULT_TEMPERATURE, DEFAULT_MAX_TRY,
+    DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN
 )
 from ..utils.enum import LLMProvider
 from ..utils.misc import getTest
@@ -24,12 +23,12 @@ def getAPIkey(provider: LLMProvider) -> str:
     _load_dotenv()
     API_KEY = os.getenv(provider.value.API_KEY_NAME)
     if API_KEY is None:
-        raise ValueError(f"{provider.value.API_KEY_NAME} must be set as env variable")
+        raise ValueError(f"{provider.value.API_KEY_NAME} is not set as env variable")
     return API_KEY
 
 
 class ChatApi():
-    def __init__(self, question: MBPPTaskInput, llm_provider: LLMProvider = DEFAULT_PROVIDER):
+    def __init__(self, question: MBPPTaskInput, llm_provider: LLMProvider):
         self.llm_provider = llm_provider
         self.setQuestion(question)
 

@@ -6,42 +6,49 @@ class Provider(ABC):
     API_KEY_NAME = ""
     URL = ""
     DEFAULT_MODEL = ""
-
-
-class OpenAIProvider(Provider):
-    API_KEY_NAME = "OPENAI_API_KEY"
-    URL = "https://api.openai.com/v1"
-    DEFAULT_MODEL = "gpt-5.5"
+    NAME = ""
 
 
 class GeminiProvider(Provider):
     API_KEY_NAME = "GEMINI_API_KEY"
     URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
     DEFAULT_MODEL = "gemini-3.5-flash-lite"
+    NAME = "Gemini"
 
 
 class OpenRouterProvider(Provider):
     API_KEY_NAME = "OPENROUTER_API_KEY"
     URL = "https://openrouter.ai/api/v1"
     DEFAULT_MODEL = "dots-studio/dots-3-note-preview:free"
+    NAME = "OpenRouter"
 
 
 class TogetherIaProvider(Provider):
     API_KEY_NAME = "TOGETHER_API_KEY"
     URL = "https://api.together.ai/v1"
     DEFAULT_MODEL = "Prism-ML/Ternary-Bonsai-27B"
+    NAME = "TogetherIa"
 
 
 class GroqProvider(Provider):
     API_KEY_NAME = "GROQ_API_KEY"
     URL = "https://api.groq.com/openai/v1"
     DEFAULT_MODEL = "qwen/qwen3.8-27b"
+    NAME = "groq"
 
 
 class CoherProvider(Provider):
     API_KEY_NAME = "COHER_API_KEY"
     URL = "https://api.cohere.ai/compatibility/v1"
     DEFAULT_MODEL = "command-a-plus-05-2026"
+    NAME = "Coher"
+
+
+class OpenAIProvider(Provider):
+    API_KEY_NAME = "OPENAI_API_KEY"
+    URL = "https://api.openai.com/v1"
+    DEFAULT_MODEL = "gpt-5.5"
+    NAME = "OpenAi"
 
 
 class LLMProvider(Enum):
