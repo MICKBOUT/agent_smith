@@ -17,6 +17,6 @@ class SandboxError(Exception):
         )
 
 
-class MaxTryReachError(Exception):
-    def __init__(self, message: str = "The maximum number of exception has been reach"):
-        super().__init__(message)
+# class MaxTryReachError(Exception):
+#     def __init__(self, message: str = "The maximum number of exception has been reach"):
+#         super().__init__(message)

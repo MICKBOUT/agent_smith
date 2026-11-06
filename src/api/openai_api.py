@@ -9,7 +9,7 @@ from ..config import (
 )
 from ..utils.enum import LLMProvider
 from ..utils.misc import getTest
-from ..models.exception import NoCodeBlockFound, NoneMessageError, MaxTryReachError
+from ..models.exception import NoCodeBlockFound, NoneMessageError
 from ..models.models_public import MBPPTaskInput
 
 
