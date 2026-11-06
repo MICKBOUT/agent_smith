@@ -5,8 +5,11 @@ import readline  # noqa, for better input, do not delete
 import socket
 import select
 import time
+import json
+import argparse
 
 from typing import Any
+from pathlib import Path
 
 from models.exception import SandboxError
 from models.models_public import SandboxConfig
@@ -178,30 +181,94 @@ class Sandbox:
         return result
 
 
+def load_json_template(file_path: str | Path) -> SandboxConfig | None:
+    """
+    load json template file.
+
+    Args:
+        file_path: the path of the config file.
+
+    Return:
+        SandboxConfig: the loaded model.
+        None: if any errors occurs.
+    """
+    file = Path(file_path)
+
+    try:
+        with open(file, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+            config = SandboxConfig.model_validate(raw)
+            return config
+
+    except FileNotFoundError:
+        print(f"FileNotFoundError : '{file}' does not exists !")
+    except PermissionError:
+        print(f"PermissionError : you do not have the rights to open '{file}'.")
+    except IsADirectoryError:
+        print(f"IsADirectoryError : '{file}' is a directory!")
+    except json.JSONDecodeError as e:
+        print(f"JSONError : Invalid json file, parsing at (line {e.lineno}, column {e.colno}).")
+    except Exception as e:
+        print(f"Error: {e}")
+
+    return None
+
+
+def parse_args() -> SandboxConfig | None:
+    """
+    parser with argparse to load a config template file.
+
+    Returns:
+        SandboxConfig: The loaded model or default model.
+    """
+    parser = argparse.ArgumentParser(
+        description="CLI tool for sandbox"
+    )
+
+    parser.add_argument(
+        "template",
+        nargs="?",
+        type=Path,
+        default=None,
+        help="path of the sandbox config tempate (json file)"
+    )
+
+    model = None
+    args = parser.parse_args()
+    if args.template:
+        print(f"Loading {args.template}...")
+        model = load_json_template(args.template)
+    else:
+        print("Running sandbox's REPL with default config.")
+
+    if model is not None:
+        return model
+
+    print("Fallback with default config")
+    return SandboxConfig()
+
+
 def main() -> None:
     """Main function for uv run sandbox command."""
 
-    config_exemple = SandboxConfig(
-        max_execution_time_seconds=3,
-        authorized_imports=["math", "numpy"]
-    )  # default factories in all fields.
-    sandbox = Sandbox(config_exemple)
+    config = parse_args()
+    sandbox = Sandbox(config)
 
-    with open(".dev/suspicious_code.py", "r") as f:
-        code = f.read()
+    # with open(".dev/suspicious_code.py", "r") as f:
+    #     code = f.read()
 
-    ret = sandbox.execute(code)
-    if ret.returncode == 0:
-        print("Successfully executed.")
-    else:
-        print(f"Failed with exit code {ret.returncode}.")
-        print("========================================")
-        print(f"{ret.stderr}")
+    # ret = sandbox.execute(code)
+    # if ret.returncode == 0:
+    #     print("Successfully executed.")
+    # else:
+    #     print(f"Failed with exit code {ret.returncode}.")
+    #     print("========================================")
+    #     print(f"{ret.stderr}")
 
-    # try:
-    #     sandbox.repl()
-    # except Exception as e:
-    #     print(e)
+    try:
+        sandbox.repl()
+    except Exception as e:
+        print(e)
 
 
 if __name__ == "__main__":
