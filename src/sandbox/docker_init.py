@@ -9,6 +9,9 @@ class Container:
     Class for executing python code in an isolated
     environnement with docker
     """
+
+    MSG = "\033[34mLoading of container...\033[0m"
+
     def __init__(self) -> None:
         """First build of the container"""
         build_dir = Path(__file__).resolve().parent / "build_context"
@@ -30,7 +33,7 @@ class Container:
         Return:
             CompletedProcess: the result of the process.
         """
-        print("Lancement du conteneur...")
+        print(self.MSG)
         result = subprocess.run(
             [
                 "docker", "run", "--rm", "--interactive",
@@ -47,5 +50,5 @@ class Container:
         return result
 
     def run_interactive(self, args: list[str]) -> None:
-        print("Lancement du conteneur...")
+        print(self.MSG)
         print("non implemente")

@@ -5,7 +5,6 @@ import readline  # noqa, for better input, do not delete
 import socket
 import select
 import time
-import json
 import argparse
 
 from typing import Any
@@ -13,7 +12,9 @@ from pathlib import Path
 
 from models import SandboxError
 from models import SandboxConfig
+
 from .docker_init import Container
+from .sandbox_loader import load_python_file, load_json_template
 
 
 Jsp = Any
@@ -25,6 +26,7 @@ class Sandbox:
     RESET = "\001\033[0m\002"
     SAND = "\001\033[1;38;2;194;178;128m\002"
     BOX = "\001\033[1;38;2;80;150;255m\002"
+    ITALIC = "\033[0m"
     NAME = f"{SAND}sand{BOX}box{RESET}> "
 
     LOGO = (
@@ -36,7 +38,7 @@ class Sandbox:
         f"{BOX}) _ ((  O ))  ( \n"
         f"{SAND}(____/\\_/\\_/\\_)__)(____/"
         f"{BOX}(____/ \\__/(_/\\_){RESET}"
-        "\npdauga & mboutte."
+        "\npdauga & mboutte.\n"
     )
     print(LOGO)
 
@@ -194,45 +196,13 @@ class Sandbox:
         return result
 
 
-def load_json_template(file_path: str | Path) -> SandboxConfig | None:
-    """
-    load json template file.
-
-    Args:
-        file_path: the path of the config file.
-
-    Return:
-        SandboxConfig: the loaded model.
-        None: if any errors occurs.
-    """
-    file = Path(file_path)
-
-    try:
-        with open(file, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-            config = SandboxConfig.model_validate(raw)
-            return config
-
-    except FileNotFoundError:
-        print(f"FileNotFoundError : '{file}' does not exists !")
-    except PermissionError:
-        print(f"PermissionError : you do not have the rights to open '{file}'.")
-    except IsADirectoryError:
-        print(f"IsADirectoryError : '{file}' is a directory!")
-    except json.JSONDecodeError as e:
-        print(f"JSONError : Invalid json file, parsing at (line {e.lineno}, column {e.colno}).")
-    except Exception as e:
-        print(f"Error: {e}")
-
-    return None
-
-
-def parse_args() -> SandboxConfig | None:
+def parse_args() -> tuple[SandboxConfig, str | None] | None:
     """
     parser with argparse to load a config template file.
 
     Returns:
-        SandboxConfig: The loaded model or default model.
+        tuple[SandboxConfig, str]: The loaded model or default model
+        with the python code to be executed.
     """
     parser = argparse.ArgumentParser(
         description="CLI tool for sandbox"
@@ -246,25 +216,47 @@ def parse_args() -> SandboxConfig | None:
         help="path of the sandbox config tempate (json file)"
     )
 
+    parser.add_argument(
+        "-e", "--execute",
+        type=Path,
+        default=None,
+        help="Execute a single python file."
+    )
+
     model = None
     args = parser.parse_args()
+    code = None
+
+    if args.execute is not None:
+        code = load_python_file(args.execute)
+        if code is None:
+            return None
+        print(f"Running {args.execute} with sandbox...")
+
     if args.template:
         print(f"Loading {args.template}...")
         model = load_json_template(args.template)
     else:
-        print("Running sandbox's REPL with default config.")
+        if code is None:
+            print("Running sandbox's REPL with default config.")
 
     if model is not None:
-        return model
+        return model, code
 
-    print("Fallback with default config")
-    return SandboxConfig()
+    if args.template:
+        print("Fallback with default config")
+
+    return SandboxConfig(), code
 
 
 def main() -> None:
     """Main function for uv run sandbox command."""
 
-    config = parse_args()
+    args = parse_args()
+    if args is None:
+        return
+
+    config, code = args
     sandbox = Sandbox(config)
 
     # with open(".dev/suspicious_code.py", "r") as f:
@@ -278,10 +270,23 @@ def main() -> None:
     #     print("========================================")
     #     print(f"{ret.stderr}")
 
-    try:
-        sandbox.repl()
-    except Exception as e:
-        print(e)
+    if code is None:
+        try:
+            sandbox.repl()
+        except Exception as e:
+            print(e)
+    else:
+        try:
+            result = sandbox.execute(code)
+        except SandboxError as e:
+            print(e)
+        else:
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
+
+            print(f"Code executed with exit code {result.returncode}.")
 
 
 if __name__ == "__main__":
