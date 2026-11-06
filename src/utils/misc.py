@@ -1,4 +1,4 @@
-from ..models.models_public import MBPPTaskInput
+from ..models import MBPPTaskInput
 
 
 def getTest(question: MBPPTaskInput) -> str:

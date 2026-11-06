@@ -1,4 +1,4 @@
-from ..utils.enum import LLMProvider
+from .enum import LLMProvider
 
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1"

@@ -1,5 +1,7 @@
 # Typing
-from typing import Any
+from typing import Any, Callable
+
+
 Builtins = dict[str, object]
 NameSpace = dict[str, Builtins]
 
@@ -14,7 +16,7 @@ class SandboxError(Exception):
         )
 
 
-def create_safe_import(authorized_imports: list[str]) -> callable:
+def create_safe_import(authorized_imports: list[str]) -> Callable:
     """
     wrapper function to get the safe_import callable
 

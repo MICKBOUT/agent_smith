@@ -2,12 +2,10 @@ import openai
 
 from .api import ChatApi
 from .api.openai_api import getAPIkey
-from .config import DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER
-from .models.models_public import SandboxConfig
-from .utils.random_question import getRandoMBPP
+from .config import DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER, LLMProvider, Provider
+from .models import SandboxConfig
 from .sandbox.sandbox import Sandbox
-from .utils.misc import addTest, rm_import_txt
-from .utils.enum import Provider, LLMProvider
+from .utils import getRandoMBPP, addTest, rm_import_txt
 
 
 def check_apikeys_available() -> list[Provider]:

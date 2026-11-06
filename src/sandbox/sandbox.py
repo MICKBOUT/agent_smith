@@ -8,8 +8,8 @@ import time
 
 from typing import Any
 
-from models.exception import SandboxError
-from models.models_public import SandboxConfig
+from models import SandboxError
+from models import SandboxConfig
 from .docker_init import Container
 
 

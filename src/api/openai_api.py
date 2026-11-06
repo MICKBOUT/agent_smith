@@ -4,13 +4,12 @@ from functools import lru_cache
 import openai
 
 from ..config import (
-    SYSTEM_PROMPT_v0, DEFAULT_TEMPERATURE,
+    SYSTEM_PROMPT, DEFAULT_TEMPERATURE,
     DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN
 )
-from ..utils.enum import LLMProvider
-from ..utils.misc import getTest
-from ..models.exception import NoCodeBlockFound, NoneMessageError
-from ..models.models_public import MBPPTaskInput
+from ..models import NoCodeBlockFound, NoneMessageError, MBPPTaskInput
+from ..utils import getTest
+from ..config import LLMProvider
 
 
 @lru_cache(maxsize=1)
@@ -36,7 +35,7 @@ class ChatApi():
         "Change the question and reset the conversation"
         self.question = question
         self.messages = [
-            {"role": "system", "content": SYSTEM_PROMPT_v0},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": f"{self.question.task_definition}\n"
@@ -119,6 +118,6 @@ class ChatApi():
 
 
 if __name__ == "__main__":
-    from ..utils.random_question import getRandoMBPP
+    from ..utils import getRandoMBPP
     chat = ChatApi(getRandoMBPP())
     chat.printModelslst(chat._getClient())
