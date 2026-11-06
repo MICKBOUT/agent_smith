@@ -27,6 +27,19 @@ class Sandbox:
     BOX = "\001\033[1;38;2;80;150;255m\002"
     NAME = f"{SAND}sand{BOX}box{RESET}> "
 
+    LOGO = (
+        f"{SAND} ____   __   __ _  ____  "
+        f"{BOX}____   __  _  _ \n"
+        f"{SAND}/ ___) / _\\ (  ( \\(    \\"
+        f"{BOX}(  _ \\ /  \\( \\/ )\n"
+        f"{SAND}\\___ \\/    \\/    / ) D ( "
+        f"{BOX}) _ ((  O ))  ( \n"
+        f"{SAND}(____/\\_/\\_/\\_)__)(____/"
+        f"{BOX}(____/ \\__/(_/\\_){RESET}"
+        "\npdauga & mboutte."
+    )
+    print(LOGO)
+
     def __init__(self, config: SandboxConfig) -> None:
         """
         init the config and init the container.
