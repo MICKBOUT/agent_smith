@@ -1,17 +1,15 @@
 import os
 from functools import lru_cache
 
-from openai import OpenAI
+import openai
 
 from ..config import (
-    DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN,
-    DEFAULT_PROVIDER, DEFAULT_MAX_TRY,
-    SYSTEM_PROMPT_v0, DEFAULT_TEMPERATURE
+    SYSTEM_PROMPT, DEFAULT_TEMPERATURE,
+    DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN
 )
-from ..utils.enum import LLMProvider
-from ..utils.misc import getTest
-from ..models.exception import NoCodeBlockFound, NoneMessageError
-from ..models.models_public import MBPPTaskInput
+from ..models import NoCodeBlockFound, NoneMessageError, MBPPTaskInput
+from ..utils import getTest
+from ..config import LLMProvider
 
 
 @lru_cache(maxsize=1)
@@ -24,20 +22,20 @@ def getAPIkey(provider: LLMProvider) -> str:
     _load_dotenv()
     API_KEY = os.getenv(provider.value.API_KEY_NAME)
     if API_KEY is None:
-        raise ValueError(f"{provider.value.API_KEY_NAME} must be set as env variable")
+        raise ValueError(f"{provider.value.API_KEY_NAME} is not set as env variable")
     return API_KEY
 
 
 class ChatApi():
-    def __init__(self, question: MBPPTaskInput, llm_provider: LLMProvider = DEFAULT_PROVIDER):
-        self.llm_provider = llm_provider
+    def __init__(self, question: MBPPTaskInput, llm_provider: LLMProvider):
+        self.setProvider(llm_provider)
         self.setQuestion(question)
 
     def setQuestion(self, question: MBPPTaskInput) -> None:
         "Change the question and reset the conversation"
         self.question = question
         self.messages = [
-            {"role": "system", "content": SYSTEM_PROMPT_v0},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": f"{self.question.task_definition}\n"
@@ -48,15 +46,18 @@ class ChatApi():
         self.total_input_tokens = 0
         self.total_output_tokens = 0
 
-    def _getClient(self) -> OpenAI:
-        return OpenAI(
+    def setProvider(self, llm_provider: LLMProvider) -> None:
+        self.llm_provider = llm_provider
+
+    def _getClient(self) -> openai.OpenAI:
+        return openai.OpenAI(
             base_url=self.llm_provider.value.URL,
             api_key=getAPIkey(self.llm_provider),
             max_retries=0,
             timeout=DEFAULT_REQUEST_TIMEOUT
         )
 
-    def printModelslst(self, client: OpenAI) -> None:
+    def printModelslst(self, client: openai.OpenAI) -> None:
         models = [m.id for m in client.models.list()]
         for model in models:
             print(model)
@@ -72,8 +73,8 @@ class ChatApi():
             raise NoCodeBlockFound("unclosed code block")
         return message[start:end].strip()
 
-    def _genCode(self, client: OpenAI, max_try) -> str:
-        for attempt in range(max_try):
+    def _genCode(self, client: openai.OpenAI) -> str:
+        try:
             response = client.chat.completions.create(
                 model=self.llm_provider.value.DEFAULT_MODEL,
                 messages=self.messages,
@@ -85,30 +86,30 @@ class ChatApi():
             message = response.choices[0].message.content
             self.total_input_tokens += response.usage.prompt_tokens
             self.total_output_tokens += response.usage.completion_tokens
-            try:
-                if not isinstance(message, str):
-                    raise NoneMessageError
-                extracted_message = self.extractCode(message)
-                return extracted_message
 
-            except NoneMessageError:
-                print("\033[34m[LOG]\033[0m None Message RETRY", message, flush=True)
-                if attempt == max_try:
-                    raise
-            except NoCodeBlockFound as e:
-                print("\033[34m[LOG]\033[0m No CodeBlock Found\n", message, flush=True)
-                if attempt == max_try:
-                    raise
-                self.messages.append({"role": "assistant", "content": message})
-                self.messages.append({
-                    "role": "user",
-                    "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
-                })
+            if not isinstance(message, str):
+                raise NoneMessageError
 
-    def generateSandboxCode(self, max_try: int = DEFAULT_MAX_TRY) -> tuple[OpenAI.ChatCompletion, str]:
+            return self.extractCode(message)
+
+        except openai.RateLimitError:
+            print("\033[34m[LOG]\033[0m RateLimitError")
+            raise
+        except NoneMessageError:
+            print("\033[34m[LOG]\033[0m None Message RETRY", message, flush=True)
+        except NoCodeBlockFound as e:
+            print("\033[34m[LOG]\033[0m No CodeBlock Found\n", message, flush=True)
+            self.messages.append({"role": "assistant", "content": message})
+            self.messages.append({
+                "role": "user",
+                "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
+            })
+        return ""
+
+    def generateSandboxCode(self) -> str:
         # client http so regenerate each time for connection timeout issue
         with self._getClient() as client:
-            llm_code = self._genCode(client, max_try=max_try)
+            llm_code = self._genCode(client)
         return llm_code
 
     def addLog(self, message: str) -> None:
@@ -117,6 +118,6 @@ class ChatApi():
 
 
 if __name__ == "__main__":
-    from ..utils.random_question import getRandoMBPP
+    from ..utils import getRandoMBPP
     chat = ChatApi(getRandoMBPP())
     chat.printModelslst(chat._getClient())

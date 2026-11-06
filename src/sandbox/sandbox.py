@@ -11,8 +11,8 @@ import argparse
 from typing import Any
 from pathlib import Path
 
-from models.exception import SandboxError
-from models.models_public import SandboxConfig
+from models import SandboxError
+from models import SandboxConfig
 from .docker_init import Container
 
 

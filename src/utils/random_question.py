@@ -2,7 +2,7 @@ import json
 import random
 
 from ..config import MBPP_SANITIZED_PATH
-from ..models.models_public import MBPPTaskInput
+from ..models import MBPPTaskInput
 
 
 def getRandoMBPP() -> MBPPTaskInput:
