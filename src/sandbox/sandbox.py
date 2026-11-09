@@ -64,7 +64,7 @@ class Sandbox:
         launch an interactive sandboxed and Docker isolated REPL.
         """
 
-        self.container.run_interactive()
+        pass  # not implemented yet
 
     def repl(self) -> None:
         """
@@ -115,8 +115,9 @@ class Sandbox:
                     print("Sandbox worker stopped.", file=sys.stderr)
                     break
 
-                worker.stdin.write(code + "\n")
-                worker.stdin.flush()
+                if worker.stdin is not None:
+                    worker.stdin.write(code + "\n")
+                    worker.stdin.flush()
 
                 self._wait_return_code(parent_control, worker)
 
@@ -132,7 +133,7 @@ class Sandbox:
             if worker.poll() is None:
                 worker.wait()
 
-    def _wait_return_code(self, parent_control: Jsp, worker: Jsp) -> int:
+    def _wait_return_code(self, parent_control: Jsp, worker: Jsp) -> int | None:
         """
         This function wait and get the return code
         from a python code given in the REPL
@@ -170,6 +171,8 @@ class Sandbox:
             elif status == b"":
                 return None
             break
+
+        return None
 
     def execute(self, code: str) -> subprocess.CalledProcessError | subprocess.CompletedProcess:
         """
