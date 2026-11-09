@@ -2,10 +2,11 @@ import os
 from functools import lru_cache
 
 import openai
+import tiktoken
 
 from ..config import (
     SYSTEM_PROMPT, DEFAULT_TEMPERATURE,
-    DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN
+    DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN, MAX_INPUT_TOKENS
 )
 from ..models import NoCodeBlockFound, NoneMessageError, MBPPTaskInput
 from ..utils import getTest
@@ -62,6 +63,35 @@ class ChatApi():
         for model in models:
             print(model)
 
+    def _countMessageTokens(self, messages: list[dict[str, str]]) -> int:
+        try:
+            encoding = tiktoken.encoding_for_model(
+                self.llm_provider.value.DEFAULT_MODEL
+            )
+        except KeyError:
+            encoding = tiktoken.get_encoding("cl100k_base")
+
+        token_count = 2
+        for message in messages:
+            token_count += 4
+            token_count += len(encoding.encode(message["role"]))
+            token_count += len(encoding.encode(message["content"]))
+        return token_count
+
+    def _getRequestMessages(self) -> list[dict[str, str]]:
+        base_messages = self.messages[:2]
+        if self._countMessageTokens(base_messages) > MAX_INPUT_TOKENS:
+            raise ValueError("The system prompt and task exceed 6000 input tokens")
+
+        recent_messages = []
+        for message in reversed(self.messages[2:]):
+            candidate = base_messages + [message] + recent_messages
+            if self._countMessageTokens(candidate) > MAX_INPUT_TOKENS:
+                break
+            recent_messages.insert(0, message)
+
+        return base_messages + recent_messages
+
     @staticmethod
     def extractCode(message: str) -> str:
         start = message.find("```python")
@@ -75,9 +105,10 @@ class ChatApi():
 
     def _genCode(self, client: openai.OpenAI) -> str:
         try:
+            request_messages = self._getRequestMessages()
             response = client.chat.completions.create(
                 model=self.llm_provider.value.DEFAULT_MODEL,
-                messages=self.messages,
+                messages=request_messages,
                 stop=["<end_code>"],
                 max_tokens=DEFAULT_MAX_TOKEN,
                 temperature=DEFAULT_TEMPERATURE
