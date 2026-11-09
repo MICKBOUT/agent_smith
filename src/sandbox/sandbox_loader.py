@@ -52,7 +52,12 @@ def load_python_file(file_path: str | Path) -> str | None:
 
     file = Path(file_path)
 
-    if not file.suffix == ".py" and file.is_file():
+    if not file.suffix == ".py":
+        print("Error: The file must be a python file.")
+        return None
+
+    if not file.is_file():
+        print(f"Error: Unable to load {file_path}")
         return None
 
     try:
