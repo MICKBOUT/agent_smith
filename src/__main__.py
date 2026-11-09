@@ -2,13 +2,13 @@ import openai
 
 from .api import ChatApi
 from .api.openai_api import getAPIkey
-from .config import DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER, LLMProvider, Provider
+from .config import DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER, LLMProvider
 from .models import SandboxConfig
 from .sandbox.sandbox import Sandbox
 from .utils import getRandoMBPP, addTest, rm_import_txt
 
 
-def check_apikeys_available() -> list[Provider]:
+def check_apikeys_available() -> list[LLMProvider]:
     provider_lst = []
     for provider in LLMProvider:
         if provider == DEFAULT_PROVIDER:

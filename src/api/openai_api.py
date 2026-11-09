@@ -83,7 +83,7 @@ class ChatApi():
         if self._countMessageTokens(base_messages) > MAX_INPUT_TOKENS:
             raise ValueError("The system prompt and task exceed 6000 input tokens")
 
-        recent_messages = []
+        recent_messages: list[dict[str, str]] = []
         for message in reversed(self.messages[2:]):
             candidate = base_messages + [message] + recent_messages
             if self._countMessageTokens(candidate) > MAX_INPUT_TOKENS:
@@ -115,11 +115,12 @@ class ChatApi():
             )
 
             message = response.choices[0].message.content
-            self.total_input_tokens += response.usage.prompt_tokens
-            self.total_output_tokens += response.usage.completion_tokens
 
             if not isinstance(message, str):
                 raise NoneMessageError
+
+            self.total_input_tokens += response.usage.prompt_tokens
+            self.total_output_tokens += response.usage.completion_tokens
 
             return self.extractCode(message)
 
