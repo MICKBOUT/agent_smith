@@ -1,3 +1,7 @@
+"""
+
+"""
+
 import sys
 import subprocess
 import codeop
@@ -203,6 +207,7 @@ def parse_args() -> tuple[SandboxConfig, str | None] | None:
     Returns:
         tuple[SandboxConfig, str]: The loaded model or default model
         with the python code to be executed.
+        None: if any error has occured.
     """
     parser = argparse.ArgumentParser(
         description="CLI tool for sandbox"
@@ -258,17 +263,6 @@ def main() -> None:
 
     config, code = args
     sandbox = Sandbox(config)
-
-    # with open(".dev/suspicious_code.py", "r") as f:
-    #     code = f.read()
-
-    # ret = sandbox.execute(code)
-    # if ret.returncode == 0:
-    #     print("Successfully executed.")
-    # else:
-    #     print(f"Failed with exit code {ret.returncode}.")
-    #     print("========================================")
-    #     print(f"{ret.stderr}")
 
     if code is None:
         try:
