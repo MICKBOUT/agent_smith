@@ -1,8 +1,12 @@
 import openai
+import time
 
 from .api import ChatApi
 from .api.openai_api import getAPIkey
-from .config import DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER, LLMProvider
+from .config import (
+    DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER,
+    LLMProvider
+)
 from .models import SandboxConfig
 from .sandbox.sandbox import Sandbox
 from .utils import getRandoMBPP, addTest, rm_import_txt
@@ -39,9 +43,16 @@ def generate_mbpp(provider_lst: list[LLMProvider]):
     print(f"Id: {question.task_id}\n"
           f"Question: {question.task_definition}")
 
+    generation_deadline = time.monotonic() + DEFAULT_GENERATION_TIMEOUT
+    code_and_test = ""
     for _ in range(DEFAULT_MAX_ITERATION):
+        remaining_time = generation_deadline - time.monotonic()
+        if remaining_time <= 0:
+            print("Generation timed out")
+            break
+
         try:
-            code = chat.generateSandboxCode()
+            code = chat.generateSandboxCode(timeout=remaining_time)
         except openai.RateLimitError:
             provider_lst.pop()
             if len(provider_lst) == 0:

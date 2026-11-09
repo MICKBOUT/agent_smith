@@ -50,12 +50,12 @@ class ChatApi():
     def setProvider(self, llm_provider: LLMProvider) -> None:
         self.llm_provider = llm_provider
 
-    def _getClient(self) -> openai.OpenAI:
+    def _getClient(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> openai.OpenAI:
         return openai.OpenAI(
             base_url=self.llm_provider.value.URL,
             api_key=getAPIkey(self.llm_provider),
             max_retries=0,
-            timeout=DEFAULT_REQUEST_TIMEOUT
+            timeout=timeout
         )
 
     def printModelslst(self, client: openai.OpenAI) -> None:
@@ -114,13 +114,19 @@ class ChatApi():
                 temperature=DEFAULT_TEMPERATURE
             )
 
-            message = response.choices[0].message.content
+            choices = getattr(response, "choices", None)
+            if not choices:
+                raise NoneMessageError("The model returned no response choices")
+
+            message = choices[0].message.content
 
             if not isinstance(message, str):
                 raise NoneMessageError
 
-            self.total_input_tokens += response.usage.prompt_tokens
-            self.total_output_tokens += response.usage.completion_tokens
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                self.total_input_tokens += usage.prompt_tokens or 0
+                self.total_output_tokens += usage.completion_tokens or 0
 
             return self.extractCode(message)
 
@@ -128,7 +134,7 @@ class ChatApi():
             print("\033[34m[LOG]\033[0m RateLimitError")
             raise
         except NoneMessageError:
-            print("\033[34m[LOG]\033[0m None Message RETRY", message, flush=True)
+            print("\033[34m[LOG]\033[0m None Message RETRY", flush=True)
         except NoCodeBlockFound as e:
             print("\033[34m[LOG]\033[0m No CodeBlock Found\n", message, flush=True)
             self.messages.append({"role": "assistant", "content": message})
@@ -138,9 +144,10 @@ class ChatApi():
             })
         return ""
 
-    def generateSandboxCode(self) -> str:
+    def generateSandboxCode(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> str:
         # client http so regenerate each time for connection timeout issue
-        with self._getClient() as client:
+        request_timeout = min(timeout, DEFAULT_REQUEST_TIMEOUT)
+        with self._getClient(request_timeout) as client:
             llm_code = self._genCode(client)
         return llm_code
 
