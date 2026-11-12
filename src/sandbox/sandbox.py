@@ -1,3 +1,7 @@
+"""
+
+"""
+
 import sys
 import subprocess
 import codeop
@@ -5,12 +9,16 @@ import readline  # noqa, for better input, do not delete
 import socket
 import select
 import time
+import argparse
 
 from typing import Any
+from pathlib import Path
 
 from models import SandboxError
 from models import SandboxConfig
+
 from .docker_init import Container
+from .sandbox_loader import load_python_file, load_json_template
 
 
 Jsp = Any
@@ -22,7 +30,21 @@ class Sandbox:
     RESET = "\001\033[0m\002"
     SAND = "\001\033[1;38;2;194;178;128m\002"
     BOX = "\001\033[1;38;2;80;150;255m\002"
+    ITALIC = "\033[0m"
     NAME = f"{SAND}sand{BOX}box{RESET}> "
+
+    LOGO = (
+        f"{SAND} ____   __   __ _  ____  "
+        f"{BOX}____   __  _  _ \n"
+        f"{SAND}/ ___) / _\\ (  ( \\(    \\"
+        f"{BOX}(  _ \\ /  \\( \\/ )\n"
+        f"{SAND}\\___ \\/    \\/    / ) D ( "
+        f"{BOX}) _ ((  O ))  ( \n"
+        f"{SAND}(____/\\_/\\_/\\_)__)(____/"
+        f"{BOX}(____/ \\__/(_/\\_){RESET}"
+        "\npdauga & mboutte.\n"
+    )
+    print(LOGO)
 
     def __init__(self, config: SandboxConfig) -> None:
         """
@@ -42,7 +64,7 @@ class Sandbox:
         launch an interactive sandboxed and Docker isolated REPL.
         """
 
-        self.container.run_interactive()
+        pass  # not implemented yet
 
     def repl(self) -> None:
         """
@@ -93,8 +115,9 @@ class Sandbox:
                     print("Sandbox worker stopped.", file=sys.stderr)
                     break
 
-                worker.stdin.write(code + "\n")
-                worker.stdin.flush()
+                if worker.stdin is not None:
+                    worker.stdin.write(code + "\n")
+                    worker.stdin.flush()
 
                 self._wait_return_code(parent_control, worker)
 
@@ -110,7 +133,7 @@ class Sandbox:
             if worker.poll() is None:
                 worker.wait()
 
-    def _wait_return_code(self, parent_control: Jsp, worker: Jsp) -> int:
+    def _wait_return_code(self, parent_control: Jsp, worker: Jsp) -> int | None:
         """
         This function wait and get the return code
         from a python code given in the REPL
@@ -149,6 +172,8 @@ class Sandbox:
                 return None
             break
 
+        return None
+
     def execute(self, code: str) -> subprocess.CalledProcessError | subprocess.CompletedProcess:
         """
         Execute code in a sandboxed python environnement.
@@ -178,30 +203,87 @@ class Sandbox:
         return result
 
 
+def parse_args() -> tuple[SandboxConfig, str | None] | None:
+    """
+    parser with argparse to load a config template file.
+
+    Returns:
+        tuple[SandboxConfig, str]: The loaded model or default model
+        with the python code to be executed.
+        None: if any error has occured.
+    """
+    parser = argparse.ArgumentParser(
+        description="CLI tool for sandbox"
+    )
+
+    parser.add_argument(
+        "template",
+        nargs="?",
+        type=Path,
+        default=None,
+        help="path of the sandbox config tempate (json file)"
+    )
+
+    parser.add_argument(
+        "-e", "--execute",
+        type=Path,
+        default=None,
+        help="Execute a single python file."
+    )
+
+    model = None
+    args = parser.parse_args()
+    code = None
+
+    if args.execute is not None:
+        code = load_python_file(args.execute)
+        if code is None:
+            return None
+        print(f"Running {args.execute} with sandbox...")
+
+    if args.template:
+        print(f"Loading {args.template}...")
+        model = load_json_template(args.template)
+    else:
+        if code is None:
+            print("Running sandbox's REPL with default config.")
+
+    if model is not None:
+        return model, code
+
+    if args.template:
+        print("Fallback with default config")
+
+    return SandboxConfig(), code
+
+
 def main() -> None:
     """Main function for uv run sandbox command."""
 
-    config_exemple = SandboxConfig(
-        max_execution_time_seconds=3,
-        authorized_imports=["math", "numpy"]
-    )  # default factories in all fields.
-    sandbox = Sandbox(config_exemple)
+    args = parse_args()
+    if args is None:
+        return
 
-    with open(".dev/suspicious_code.py", "r") as f:
-        code = f.read()
+    config, code = args
+    sandbox = Sandbox(config)
 
-    ret = sandbox.execute(code)
-    if ret.returncode == 0:
-        print("Successfully executed.")
+    if code is None:
+        try:
+            sandbox.repl()
+        except Exception as e:
+            print(e)
     else:
-        print(f"Failed with exit code {ret.returncode}.")
-        print("========================================")
-        print(f"{ret.stderr}")
+        try:
+            result = sandbox.execute(code)
+        except SandboxError as e:
+            print(e)
+        else:
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
 
-    # try:
-    #     sandbox.repl()
-    # except Exception as e:
-    #     print(e)
+            print(f"Code executed with exit code {result.returncode}.")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ MBPP_SANITIZED_PATH = MPBB_FOLDER_PATH + "/sanitized_tasks.json"
 DEFAULT_PROVIDER = LLMProvider.OPENROUTER
 
 DEFAULT_MAX_ITERATION = 10
+DEFAULT_GENERATION_TIMEOUT = 120  # total time in seconds for one generation run
 DEFAULT_REQUEST_TIMEOUT = 60  # in seconde / per request
 DEFAULT_MAX_TOKEN = 1000  # per request to the llm
 MAX_INPUT_TOKENS = 6000
