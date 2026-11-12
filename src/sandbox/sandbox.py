@@ -41,7 +41,6 @@ class Sandbox:
         f"{BOX}(____/ \\__/(_/\\_){RESET}"
         "\npdauga & mboutte.\n"
     )
-    print(LOGO)
 
     def __init__(self, config: SandboxConfig) -> None:
         """
@@ -50,18 +49,13 @@ class Sandbox:
         Args:
             config: The sandbox config.
         """
+        print(self.LOGO)
         self.config = config
         self.timeout = config.max_execution_time_seconds
         self.authorized_imports = config.authorized_imports
+        self.max_memory = config.max_memory_mb
 
         self.container = Container()
-
-    def new_repl(self) -> None:
-        """
-        launch an interactive sandboxed and Docker isolated REPL.
-        """
-
-        self.repl()
 
     def repl(self) -> None:
         """
@@ -78,7 +72,7 @@ class Sandbox:
         listener.bind(str(socket_path))
         socket_path.chmod(0o666)
         listener.listen(1)
-        listener.settimeout(0.2) # its for recv and accept ops
+        listener.settimeout(0.2)  # its for recv and accept ops
 
         worker = None
         control = None
@@ -92,15 +86,15 @@ class Sandbox:
                 self.config.allowed_directories,
             )
 
-            startup_deadline = time.monotonic() + 15
+            startup_deadline = time.monotonic() + 10
             while control is None:
                 try:
                     control, _ = listener.accept()
                 except socket.timeout:
                     if worker.poll() is not None:
                         raise RuntimeError(
-                            "The Docker worker stopped before connecting "
-                            f"(exit code {worker.returncode})."
+                            "The Docker worker stopped before connecting with"
+                            f"exit code {worker.returncode}."
                         )
                     if time.monotonic() >= startup_deadline:
                         raise TimeoutError(
@@ -112,6 +106,7 @@ class Sandbox:
                 if worker.poll() is not None:
                     print("Sandbox worker stopped.", file=sys.stderr)
                     break
+
                 line = input(Sandbox.NAME)
 
                 if line.strip() == "exit":
@@ -134,8 +129,8 @@ class Sandbox:
 
                 code = "\n".join(lines) + "\n"
                 control.sendall((code + "\n").encode("utf-8"))
-
                 self._wait_return_code(control, worker, container_name)
+                time.sleep(0.001)
 
         except EOFError:
             pass
@@ -157,6 +152,11 @@ class Sandbox:
     ) -> int:
         """
         Wait for the worker's one-byte status for the submitted code block.
+
+        Args:
+            control: the AF socket.
+            worker: child process.
+            container_name: container name.
 
         Returns:
             0: code executed without an exception
@@ -180,7 +180,7 @@ class Sandbox:
                     raise SandboxError("TimeoutExpired!")
                 if worker.poll() is not None:
                     print("Worker stopped.", file=sys.stderr)
-                    raise RuntimeError("Sandbox worker stopped unexpectedly.")
+                    raise RuntimeError("Sandbox worker stopped.")
                 continue
 
             status = control.recv(1)
@@ -211,10 +211,11 @@ class Sandbox:
             result = self.container.run(
                 [" ".join(self.authorized_imports), "--single"],
                 self.timeout,
+                self.max_memory,
                 code
             )
 
-        except subprocess.TimeoutExpired:  # obsolete
+        except subprocess.TimeoutExpired:
             raise SandboxError("TimeoutExpired!")
         except subprocess.CalledProcessError as err:
             return err
@@ -276,39 +277,33 @@ def parse_args() -> tuple[SandboxConfig, str | None] | None:
     return SandboxConfig(), code
 
 
-# def main() -> None:
-#     """Main function for uv run sandbox command."""
+def main() -> None:
+    """Main function for uv run sandbox command."""
+    args = parse_args()
+    if args is None:
+        return
 
-#     args = parse_args()
-#     if args is None:
-#         return
-
-#     config, code = args
-#     sandbox = Sandbox(config)
-
-#     if code is None:
-#         try:
-#             sandbox.repl()
-#         except Exception as e:
-#             print(e)
-#     else:
-#         try:
-#             result = sandbox.execute(code)
-#         except SandboxError as e:
-#             print(e)
-#         else:
-#             if result.stdout:
-#                 print(result.stdout)
-#             if result.stderr:
-#                 print(result.stderr)
-
-#             print(f"Code executed with exit code {result.returncode}.")
-
-def main():
-    config = SandboxConfig()
+    config, code = args
     sandbox = Sandbox(config)
 
-    sandbox.repl()
+    if code is None:
+        try:
+            sandbox.repl()
+        except Exception as e:
+            print(e)
+    else:
+        try:
+            result = sandbox.execute(code)
+        except SandboxError as e:
+            print(e)
+        else:
+            if result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
+
+            print(f"Code executed with exit code {result.returncode}.")
+
 
 if __name__ == "__main__":
     main()

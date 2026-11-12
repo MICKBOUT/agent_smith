@@ -1,3 +1,8 @@
+"""
+Child process file executed with Docker.
+Parse lines from stdin and execute in with custom rules.
+"""
+
 import sys
 import socket
 
@@ -10,8 +15,9 @@ def main() -> None:
     """
     Main execution line for the REPL worker.
 
-    exemple of differents sys.argv.
-
+    Args (from sys.argv):
+        1: authorized_imports: "math functools".
+        2: flag: "--single" for execute one bloc.
     """
 
     if len(sys.argv) > 1:

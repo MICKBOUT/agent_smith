@@ -27,23 +27,27 @@ class Container:
             check=True,
         )
 
-    def run(self, args: list[str], timeout: int, code: str) -> subprocess.CompletedProcess:
+    def run(self, args: list[str], timeout: int, max_memory: int, code: str) -> subprocess.CompletedProcess:
         """
         this method can execute a single bloc of python code
         in a isolated environnment.
 
         Args:
             args: list of arguments for the child process.
+            timeout: the timout limit for the process.
+            max_memory: limit of memory which can be allocate.
             code: the code to be executed.
 
         Return:
             CompletedProcess: the result of the process.
         """
+
         print(self.MSG)
+
         result = subprocess.run(
             [
                 "docker", "run", "--rm", "--interactive",
-                "--memory=512m", "--memory-swap=512m", "--network=none",
+                f"--memory={max_memory}m", f"--memory-swap={max_memory}m", "--network=none",
                 IMAGE_NAME, "python", "worker.py", *args,
             ],
             input=code,
@@ -62,23 +66,39 @@ class Container:
         memory_mb: int,
         allowed_directories: list[str],
     ) -> tuple[subprocess.Popen[bytes], str]:
-        """Start one persistent container for an interactive REPL session."""
+        """
+        Start one persistent container for an interactive REPL session.
+        
+        Args:
+            args: arguments for the child process.
+            control_directory: the unix socket location.
+            memory_mb: the limit of memory it can be allocated.
+            allowed_directories: list of allowed directories
+        
+        Return:
+            the process with the name of the container.
+            
+        Raises
+            ValueError: if the memory_mb value zero or negative.
+        """
+
         if memory_mb <= 0:
             raise ValueError("max_memory_mb must be greater than zero")
 
         container_name = f"agent-smith-repl-{uuid4().hex[:12]}"
+
         command = [
             "docker", "run",
-            "--rm", # delete instant the old container.
-            "--name", container_name, 
+            "--rm",  # delete instant the old container.
+            "--name", container_name,
             "--memory", f"{memory_mb}m",
-            "--memory-swap", f"{memory_mb}m", # the limit of swap + memory !!!!
+            "--memory-swap", f"{memory_mb}m",  # the limit of swap + memory !!!!
             "--network=none",
             "--read-only",
-            "--pids-limit", "64", # to avoid fork bomb
-            "--cap-drop=ALL",
+            "--pids-limit", "64",  # to avoid fork bomb
+            "--cap-drop=ALL",  # to remove all privillege
             "--security-opt=no-new-privileges",
-            "--user", "65534:65534", # its for set the user as nobody/nogroup
+            "--user", "65534:65534",  # its for set the user as nobody/nogroup
             "--env", "PYTHONDONTWRITEBYTECODE=1",
             "--mount",
             (
@@ -128,7 +148,14 @@ class Container:
         container_name: str,
         force: bool = False,
     ) -> None:
-        """Stop the named container if its REPL session is still running."""
+        """
+        Stop the named container if its REPL session is still running.
+
+        Args:
+            process: the process to be stopped
+            container_name the name of the container to be stopped.
+            force: force flag
+        """
         if process.poll() is not None:
             return
 
