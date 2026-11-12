@@ -1,33 +1,25 @@
 """
-Module responsible for loading and executing Python files
-inside the sandbox environment.
 
-This module provides utilities to:
-- Load Python source files.
-- Execute Python code safely.
-- Handle execution errors and timeouts.
-
-Useful methods:
-    - Sandbox().execute: for run a single bloc code.
-    - Sandbox().repl: for run a dynamic REPL inside the terminal.
 """
 
-import readline  # noqa
 import sys
 import subprocess
 import codeop
+import readline  # noqa, for better input, do not delete
 import socket
 import select
 import time
 import argparse
+import tempfile
+import uuid
 
-from typing import Any
 from pathlib import Path
 
 from ..models import SandboxError, SandboxConfig
 
-from .docker_init import Container
+from .docker_init import Container, CONTROL_SOCKET
 from .sandbox_loader import load_python_file, load_json_template
+
 
 class Sandbox:
     """Basic class for sandboxing and executing python code."""
@@ -48,7 +40,6 @@ class Sandbox:
         f"{BOX}(____/ \\__/(_/\\_){RESET}"
         "\npdauga & mboutte.\n"
     )
-    print(LOGO)
 
     def __init__(self, config: SandboxConfig) -> None:
         """
@@ -57,9 +48,11 @@ class Sandbox:
         Args:
             config: The sandbox config.
         """
+        print(self.LOGO)
         self.config = config
         self.timeout = config.max_execution_time_seconds
         self.authorized_imports = config.authorized_imports
+        self.max_memory = config.max_memory_mb
 
         self.container = Container()
 
@@ -67,25 +60,51 @@ class Sandbox:
         """
         launch an interactive sandboxed REPL.
         """
-        parent_control, worker_control = socket.socketpair()
-
-        worker = subprocess.Popen(
-            [
-                sys.executable, "-u", "-m", "sandbox.worker",
-                " ".join(self.authorized_imports), "--control-fd",
-                str(worker_control.fileno()),
-            ],
-            stdin=subprocess.PIPE,
-            stdout=None,
-            stderr=None,
-            text=True,
-            pass_fds=(worker_control.fileno(),),
+        temporary_directory = tempfile.TemporaryDirectory(
+            prefix="sandbox-control-"
         )
+        control_directory = Path(temporary_directory.name)
+        control_directory.chmod(0o711)
 
-        worker_control.close()
+        socket_path = control_directory / Path(CONTROL_SOCKET).name
+        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        listener.bind(str(socket_path))
+        socket_path.chmod(0o666)
+        listener.listen(1)
+        listener.settimeout(0.2)  # its for recv and accept ops
+
+        worker = None
+        control = None
+        container_name = f"agent-smith-repl-{uuid.uuid4().hex[:12]}"
 
         try:
+            worker, container_name = self.container.run_interactive(
+                [" ".join(self.authorized_imports)],
+                control_directory,
+                self.config.max_memory_mb,
+                self.config.allowed_directories,
+            )
+
+            startup_deadline = time.monotonic() + 10
+            while control is None:
+                try:
+                    control, _ = listener.accept()
+                except socket.timeout:
+                    if worker.poll() is not None:
+                        raise RuntimeError(
+                            "The Docker worker stopped before connecting with"
+                            f"exit code {worker.returncode}."
+                        )
+                    if time.monotonic() >= startup_deadline:
+                        raise TimeoutError(
+                            "The Docker worker did not connect to its "
+                            "Unix control socket."
+                        )
+
             while True:
+                if worker.poll() is not None:
+                    print("Sandbox worker stopped.", file=sys.stderr)
+                    break
 
                 line = input(Sandbox.NAME)
 
@@ -108,71 +127,70 @@ class Sandbox:
                             lines.append(next)
 
                 code = "\n".join(lines) + "\n"
-                if worker.poll() is not None:
-                    print("Sandbox worker stopped.", file=sys.stderr)
-                    break
-
-                if worker.stdin is not None:
-                    worker.stdin.write(code + "\n")
-                    worker.stdin.flush()
-
-                self._wait_return_code(parent_control, worker)
+                control.sendall((code + "\n").encode("utf-8"))
+                self._wait_return_code(control, worker, container_name)
+                time.sleep(0.001)
 
         except EOFError:
             pass
         except KeyboardInterrupt:
             print("\nBye!")
-            worker.kill()
-            worker.wait()
         finally:
-            if worker.stdin is not None and not worker.stdin.closed:
-                worker.stdin.close()
-            if worker.poll() is None:
-                worker.wait()
+            if control is not None:
+                control.close()
+            listener.close()
+            if worker is not None:
+                self.container.stop_interactive(worker, container_name)
+            temporary_directory.cleanup()
 
-    def _wait_return_code(self, parent_control: socket, worker: Any) -> int | None:
+    def _wait_return_code(
+        self,
+        control: socket.socket,
+        worker: subprocess.Popen[bytes],
+        container_name: str,
+    ) -> int:
         """
-        This function wait and get the return code
-        from a python code given in the REPL
+        Wait for the worker's one-byte status for the submitted code block.
+
         Args:
-            parent_control: the socket.
-            worker: the worker process.
+            control: the AF socket.
+            worker: child process.
+            container_name: container name.
 
         Returns:
-            0: line executed without error
-            1: line executed with one Exception
-            None: if an Exception is raised
+            0: code executed without an exception
+            1: code raised an exception
 
         Raises:
             SandboxError: if a timeout occurs
         """
-        runtime = time.time()
+        runtime = time.monotonic()
         while True:
             readable, _, _ = select.select(
-                [parent_control], [], [], 0.1)
+                [control], [], [], 0.1)
 
             if not readable:
-                if time.time() - runtime > self.timeout:
-                    worker.kill()
-                    worker.wait()
-                    parent_control.close()
+                if time.monotonic() - runtime > self.timeout:
+                    self.container.stop_interactive(
+                        worker,
+                        container_name,
+                        force=True,
+                    )
                     raise SandboxError("TimeoutExpired!")
                 if worker.poll() is not None:
                     print("Worker stopped.", file=sys.stderr)
-                    break
+                    raise RuntimeError("Sandbox worker stopped.")
                 continue
 
-            status = parent_control.recv(1)
+            status = control.recv(1)
 
             if status == b"\x00":
                 return 0
             elif status == b"\x01":
                 return 1
             elif status == b"":
-                return None
-            break
-
-        return None
+                raise RuntimeError("Sandbox worker closed the control socket.")
+            raise RuntimeError(f"Unknown worker status: {status!r}")
 
     def execute(self, code: str) -> subprocess.CalledProcessError | subprocess.CompletedProcess:
         """
@@ -192,10 +210,11 @@ class Sandbox:
             result = self.container.run(
                 [" ".join(self.authorized_imports), "--single"],
                 self.timeout,
+                self.max_memory,
                 code
             )
 
-        except subprocess.TimeoutExpired:  # obsolete
+        except subprocess.TimeoutExpired:
             raise SandboxError("TimeoutExpired!")
         except subprocess.CalledProcessError as err:
             return err
@@ -213,7 +232,7 @@ def parse_args() -> tuple[SandboxConfig, str | None] | None:
         None: if any error has occured.
     """
     parser = argparse.ArgumentParser(
-        description="CLI tool for Sandbox."
+        description="CLI tool for sandbox"
     )
 
     parser.add_argument(
@@ -259,7 +278,6 @@ def parse_args() -> tuple[SandboxConfig, str | None] | None:
 
 def main() -> None:
     """Main function for uv run sandbox command."""
-
     args = parse_args()
     if args is None:
         return
