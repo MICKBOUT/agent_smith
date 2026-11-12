@@ -1,15 +1,22 @@
-import openai
 import time
+import asyncio
+import json
+import sys
+from pathlib import Path
+
+import openai
+import fastmcp
+from fastmcp.client.transports import StdioTransport
 
 from .api import ChatApi
 from .api.openai_api import getAPIkey
 from .config import (
-    DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER, SYSTEM_PROMPT,
-    LLMProvider
+    DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER,
+    SYSTEM_PROMPT, LLMProvider
 )
-from .models import SandboxConfig, SolutionOutput
-from .sandbox.sandbox import Sandbox
-from .utils import getRandoMBPP, addTest, rm_import_txt
+
+from .models import SolutionOutput
+from .utils import getRandoMBPP
 
 
 def check_apikeys_available() -> list[LLMProvider]:
@@ -30,77 +37,85 @@ def check_apikeys_available() -> list[LLMProvider]:
     return provider_lst
 
 
-def generate_mbpp(provider_lst: list[LLMProvider]):
+async def generate_mbpp(provider_lst: list[LLMProvider]):
     question = getRandoMBPP()
-    sandbox = Sandbox(SandboxConfig(
-        authorized_imports=rm_import_txt(question.test_imports)
-    ))
-    chat = ChatApi(
-        question=question,
-        llm_provider=provider_lst[-1]
-    )
+    chat = ChatApi(question=question, llm_provider=provider_lst[-1])
 
     print(
         f"Id: {question.task_id}\n"
         f"Question: {question.task_definition}"
     )
 
-    code_and_test, success, error = None, False, ""
-
     start_time = time.monotonic()
     generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
-    for iteration in range(DEFAULT_MAX_ITERATION):
-        remaining_time = generation_deadline - time.monotonic()
-        if remaining_time < 0:
-            error = "Generation timed out"
-            break
+    code = ""
+    error = None
+    iterations = 0
 
-        try:
-            code = chat.generateSandboxCode(timeout=remaining_time)
-        except openai.RateLimitError:
-            provider_lst.pop()
-            if len(provider_lst) == 0:
-                error = "No provider available"
+    async with client:
+        for iteration in range(DEFAULT_MAX_ITERATION):
+            iterations = iteration + 1
+            remaining_time = generation_deadline - time.monotonic()
+            if remaining_time < 0:
+                error = "Generation timed out"
                 break
-            chat.setProvider(provider_lst[-1])
-            continue
 
-        code_and_test = addTest(code, question)
-        result = sandbox.execute(code_and_test)
-        if result.returncode != 0:
-            error = result.stderr
-            print("\033[31mError in the code\033[0m")
-            print("\033[34m[LOG]\033[0m", result.stderr, flush=True)
-            chat.addLog(result.stderr)
-        else:
-            print("\033[32mDone\033[0m")
-            error, success = None, True
-            break
+            try:
+                code = chat.generateSandboxCode(timeout=remaining_time)
+                result = await client.call_tool(
+                    "run_tests",
+                    {
+                        "code": code,
+                        "test_list": question.test_list,
+                        "test_imports": question.test_imports,
+                    },
+                )
+                test_result = json.loads(result.data)
+                if test_result["success"]:
+                    print("\033[32mDone\033[0m")
+                    break
 
-    print(code_and_test)
-    ans = SolutionOutput.model_validate({
-        "task_id": str(question.task_id),
-        "benchmark": "mbpp",
-        "success": success,
-        "solution": code,
-        "iterations": iteration,  # to-do: put the right thing here
-        "total_requests": iteration,
-        "total_input_tokens": chat.total_input_tokens,
-        "total_output_tokens": chat.total_output_tokens,
-        "total_time_seconds": time.monotonic() - start_time,
-        "steps": [],  # to-do: put the right thing here
-        "system_prompt": SYSTEM_PROMPT,
-        "error": error
-    })
-    print(ans)
+                error = test_result["output"]
+                chat.addLog(error)
+            except (openai.RateLimitError, openai.BadRequestError):
+                provider_lst.pop()
+                if len(provider_lst) == 0:
+                    error = "No provider available"
+                    break
+                chat.setProvider(provider_lst[-1])
+
+    output = SolutionOutput(
+        task_id=str(question.task_id),
+        benchmark="mbpp",
+        success=test_result["success"] if test_result else False,
+        solution=code,
+        iterations=iterations,
+        total_requests=iterations,
+        total_input_tokens=chat.total_input_tokens,
+        total_output_tokens=chat.total_output_tokens,
+        total_time_seconds=time.monotonic() - start_time,
+        steps=[],
+        system_prompt=SYSTEM_PROMPT,
+        error=error,
+    )
+    print(output.model_dump_json(indent=2))
 
 
 def main() -> None:
     provider_lst = check_apikeys_available()
-    if len(provider_lst) == 0:
-        raise ValueError("No Api keys are set as env variable")
-    generate_mbpp(provider_lst)
+    if not provider_lst:
+        raise ValueError("No API keys are set as environment variables")
+    asyncio.run(generate_mbpp(provider_lst))
 
 
 if __name__ == "__main__":
+    PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+    transport = StdioTransport(
+        command=sys.executable,
+        args=["-m", "src.mcp.mcp_tools_mbpp"],
+        cwd=str(PROJECT_ROOT),
+    )
+    client = fastmcp.Client(transport)
+
     main()

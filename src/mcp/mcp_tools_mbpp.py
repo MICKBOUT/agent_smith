@@ -1,45 +1,40 @@
 """MCP tools used by the MBPP agent."""
 
 import json
-import ast
-import subprocess
-
 from fastmcp import FastMCP
-from ..sandbox.docker_init import Container
+
+from ..models import SandboxConfig, SandboxError
+from ..sandbox.sandbox import Sandbox
+from ..utils import sanitizeImport
+
 
 mcp = FastMCP("MBPP tools")
-container: Container | None = None
+sandbox: Sandbox | None = None
 
 
 @mcp.tool
-def run_tests(code: str, test_list: list[str], test_imports: list[str] = []) -> str:
+def run_tests(code: str, test_list: list[str], test_imports: list[str] | None = None) -> str:
     """Run a candidate solution against MBPP assertion tests."""
+    test_imports = test_imports or []
     program = "\n".join([*test_imports, code, *test_list])
 
-    # Allow only modules requested by the task, not imports added by the model.
-    allowed_imports = set()
+    global sandbox
+    if sandbox is None or sandbox.authorized_imports != sanitizeImport(test_imports):
+        sandbox = Sandbox(SandboxConfig(
+            authorized_imports=sanitizeImport(test_imports)
+        ))
     try:
-        for node in ast.walk(ast.parse("\n".join(test_imports))):
-            if isinstance(node, ast.Import):
-                allowed_imports.update(alias.name for alias in node.names)
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                allowed_imports.add(node.module)
-    except SyntaxError as exc:
-        return json.dumps({"success": False, "output": f"SyntaxError: {exc}"})
+        result = None
+        result = sandbox.execute(program)
+        if result.returncode != 0:
+            raise SandboxError(result.stderr)
 
-    global container
-    if container is None:
-        container = Container()
-    try:
-        result = container.run([" ".join(sorted(allowed_imports)), "--single"], 10, program)
-    except subprocess.TimeoutExpired:
-        return json.dumps({"success": False, "output": "Tests timed out."})
-    except subprocess.CalledProcessError as exc:
-        output = (exc.stdout or "") + (exc.stderr or "")
-        return json.dumps({"success": False, "output": output.strip()})
+    except SandboxError:
+        if result:
+            return json.dumps({"success": False, "output": result.stderr})
+        return json.dumps({"success": False, "output": "SandBoxtime out"})
 
-    output = (result.stdout + result.stderr).strip()
-    return json.dumps({"success": result.returncode == 0, "output": output})
+    return json.dumps({"success": result.returncode == 0, "output": result.stderr})
 
 
 if __name__ == "__main__":

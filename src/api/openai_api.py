@@ -13,6 +13,8 @@ from ..utils import getTest
 from ..config import LLMProvider
 
 
+BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
+
 @lru_cache(maxsize=1)
 def _load_dotenv() -> None:
     from dotenv import load_dotenv
@@ -131,12 +133,12 @@ class ChatApi():
             return self.extractCode(message)
 
         except (openai.RateLimitError, openai.BadRequestError) as e:
-            print(f"\033[34m[LOG]\033[0m {type(e).__name__}")
+            print(BLUE_LOG_STR, type(e).__name__, flush=True)
             raise
         except NoneMessageError:
-            print("\033[34m[LOG]\033[0m None Message RETRY", flush=True)
+            print(BLUE_LOG_STR, "None Message RETRY", flush=True)
         except NoCodeBlockFound as e:
-            print("\033[34m[LOG]\033[0m No CodeBlock Found\n", message, flush=True)
+            print(BLUE_LOG_STR, "No CodeBlock Found\n", flush=True)
             self.messages.append({"role": "assistant", "content": message})
             self.messages.append({
                 "role": "user",

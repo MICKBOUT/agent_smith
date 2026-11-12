@@ -1,9 +1,9 @@
 from .random_question import getRandoMBPP
-from .misc import addTest, rm_import_txt, getTest
+from .misc import addTest, sanitizeImport, getTest
 
 __all__ = [
     "getRandoMBPP",
     "addTest",
-    "rm_import_txt",
+    "sanitizeImport",
     "getTest"
 ]

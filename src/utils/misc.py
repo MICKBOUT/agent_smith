@@ -12,5 +12,5 @@ def addTest(code: str, question: MBPPTaskInput) -> str:
     return "\n".join((code, getTest(question)))
 
 
-def rm_import_txt(modules: list[str]):
+def sanitizeImport(modules: list[str]):
     return [ell for ell in modules if ell[:7] == "import "]
