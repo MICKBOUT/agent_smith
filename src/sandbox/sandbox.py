@@ -15,7 +15,7 @@ import uuid
 
 from pathlib import Path
 
-from ..models import SandboxError, SandboxConfig
+from models import SandboxError, SandboxConfig
 
 from .docker_init import Container, CONTROL_SOCKET
 from .sandbox_loader import load_python_file, load_json_template
