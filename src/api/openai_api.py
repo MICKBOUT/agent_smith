@@ -15,6 +15,7 @@ from ..config import LLMProvider
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
 
+
 @lru_cache(maxsize=1)
 def _load_dotenv() -> None:
     from dotenv import load_dotenv
