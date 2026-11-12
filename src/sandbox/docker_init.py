@@ -68,16 +68,16 @@ class Container:
     ) -> tuple[subprocess.Popen[bytes], str]:
         """
         Start one persistent container for an interactive REPL session.
-        
+
         Args:
             args: arguments for the child process.
             control_directory: the unix socket location.
             memory_mb: the limit of memory it can be allocated.
             allowed_directories: list of allowed directories
-        
+
         Return:
             the process with the name of the container.
-            
+
         Raises
             ValueError: if the memory_mb value zero or negative.
         """
