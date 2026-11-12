@@ -130,8 +130,8 @@ class ChatApi():
 
             return self.extractCode(message)
 
-        except openai.RateLimitError:
-            print("\033[34m[LOG]\033[0m RateLimitError")
+        except (openai.RateLimitError, openai.BadRequestError) as e:
+            print(f"\033[34m[LOG]\033[0m {type(e).__name__}")
             raise
         except NoneMessageError:
             print("\033[34m[LOG]\033[0m None Message RETRY", flush=True)
