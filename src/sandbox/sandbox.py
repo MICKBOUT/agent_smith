@@ -24,8 +24,7 @@ import argparse
 from typing import Any
 from pathlib import Path
 
-from models import SandboxError
-from models import SandboxConfig
+from ..models import SandboxError, SandboxConfig
 
 from .docker_init import Container
 from .sandbox_loader import load_python_file, load_json_template

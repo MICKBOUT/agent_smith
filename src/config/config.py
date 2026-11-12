@@ -8,7 +8,7 @@ DATASET_PATH = "datasets"
 MPBB_FOLDER_PATH = DATASET_PATH + "/mbpp"
 MBPP_SANITIZED_PATH = MPBB_FOLDER_PATH + "/sanitized_tasks.json"
 
-DEFAULT_PROVIDER = LLMProvider.OPENROUTER
+DEFAULT_PROVIDER = LLMProvider.GEMIN
 
 DEFAULT_MAX_ITERATION = 10
 DEFAULT_GENERATION_TIMEOUT = 120  # total time in seconds for one generation run
