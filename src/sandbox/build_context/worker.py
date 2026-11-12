@@ -1,21 +1,27 @@
+"""
+Child process file executed with Docker.
+Parse lines from stdin and execute in with custom rules.
+"""
+
 import sys
 import socket
 
 from sandbox_utils import get_new_namespace  # type: ignore
+
+SOCKET_PATH = "/run/sandbox-control/sandbox.sock"
 
 
 def main() -> None:
     """
     Main execution line for the REPL worker.
 
-    exemple of differents sys.argv.
-
-    "math numpy functools", "--single"
-    "numpy random pandas", "--control-fd 5"
+    Args (from sys.argv):
+        1: authorized_imports: "math functools".
+        2: flag: "--single" for execute one bloc.
     """
 
     if len(sys.argv) > 1:
-        authorized_imports = sys.argv[1].split(" ")
+        authorized_imports = sys.argv[1].split()
         namespace = get_new_namespace(authorized_imports)
     else:
         return
@@ -25,40 +31,43 @@ def main() -> None:
         exec(code, namespace, namespace)
         return
 
-    if len(sys.argv) != 4 or sys.argv[2] != "--control-fd":
-        raise ValueError("Expected --control-fd FD")
-
-    control_fd = int(sys.argv[3])
-    control = socket.socket(fileno=control_fd)
+    control = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    control.connect(SOCKET_PATH)
 
     try:
-        while True:
-            lines = []
+        reader = control.makefile("r", encoding="utf-8")
+        try:
             while True:
-                line = sys.stdin.readline()
-                if not line:
-                    break
-                if line == "\n":
-                    break
-                lines.append(line)
+                lines = []
+                while True:
+                    line = reader.readline()
+                    if line == "":
+                        return
+                    if line == "\n":
+                        break
+                    lines.append(line)
 
-            if not lines:
-                if not line:
-                    break
-                continue
+                if not lines:
+                    continue
 
-            code = "".join(lines)
-            status = b"\x00"
-            try:
-                exec(compile(code, "<sandbox>", "single"), namespace, namespace)
-            except Exception as error:
-                status = b"\x01"
-                print(f"{type(error).__name__}: {error}", file=sys.stderr)
-            finally:
-                control.sendall(status)
-
-            if not line:
-                break
+                code = "".join(lines)
+                try:
+                    exec(
+                        compile(code, "<sandbox>", "single"),
+                        namespace,
+                        namespace,
+                    )
+                except (KeyboardInterrupt, SystemExit) as error:
+                    print(f"{type(error).__name__}: {error}", file=sys.stderr)
+                    control.sendall(b"\x01")
+                    raise
+                except Exception as error:
+                    print(f"{type(error).__name__}: {error}", file=sys.stderr)
+                    control.sendall(b"\x01")
+                else:
+                    control.sendall(b"\x00")
+        finally:
+            reader.close()
     finally:
         control.close()
 
