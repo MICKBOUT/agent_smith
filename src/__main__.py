@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
     transport = StdioTransport(
         command=sys.executable,
-        args=["-m", "src.mcp.mcp_tools_mbpp"],
+        args=[str(PROJECT_ROOT / "mcp_tools_mbpp.py")],
         cwd=str(PROJECT_ROOT),
     )
     client = fastmcp.Client(transport)

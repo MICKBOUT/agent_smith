@@ -1,11 +1,12 @@
 """MCP tools used by the MBPP agent."""
 
 import json
+
 from fastmcp import FastMCP
 
-from ..models import SandboxConfig, SandboxError
-from ..sandbox.sandbox import Sandbox
-from ..utils import sanitizeImport
+from src.models import SandboxConfig, SandboxError
+from src.sandbox.sandbox import Sandbox
+from src.utils import sanitizeImport
 
 
 mcp = FastMCP("MBPP tools")
