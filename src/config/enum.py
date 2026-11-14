@@ -51,6 +51,13 @@ class OpenAIProvider(Provider):
     NAME = "OpenAi"
 
 
+class LMStuidoProvider(Provider):
+    API_KEY_NAME = "LM_STUDIO_API_KEY"
+    URL = "http://localhost:1234/v1"
+    DEFAULT_MODEL = "prism-ml/bonsai-27b"
+    NAME = "lm Studio"
+
+
 class LLMProvider(Enum):
     GEMIN = GeminiProvider
     OPENROUTER = OpenRouterProvider
@@ -58,3 +65,4 @@ class LLMProvider(Enum):
     GROQ = GroqProvider
     COHER = CoherProvider
     OPENAI = OpenAIProvider
+    LMSTUDIO = LMStuidoProvider

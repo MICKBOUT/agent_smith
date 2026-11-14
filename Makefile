@@ -11,7 +11,7 @@ install:
 run: install
 	uv run python -m $(SRC)
 
-run-openai:
+run-model_lst:
 	uv run python -m src.api.openai_api
 
 lint: install

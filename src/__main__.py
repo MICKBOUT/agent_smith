@@ -62,6 +62,7 @@ async def generate_mbpp(provider_lst: list[LLMProvider]):
 
             try:
                 code = chat.generateSandboxCode(timeout=remaining_time)
+                print(code)
                 result = await client.call_tool(
                     "run_tests",
                     {

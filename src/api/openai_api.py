@@ -121,10 +121,15 @@ class ChatApi():
             if not choices:
                 raise NoneMessageError("The model returned no response choices")
 
-            message = choices[0].message.content
+            response_message = choices[0].message
+            message = getattr(response_message, "content", None)
+            if not isinstance(message, str) or not message.strip():
+                # LM Studio reasoning models may put the generated text here
+                # while leaving the OpenAI-compatible content field empty.
+                message = getattr(response_message, "reasoning_content", None)
 
-            if not isinstance(message, str):
-                raise NoneMessageError
+            if not isinstance(message, str) or not message.strip():
+                raise NoneMessageError("The model returned no message content")
 
             usage = getattr(response, "usage", None)
             if usage is not None:
@@ -161,5 +166,6 @@ class ChatApi():
 
 if __name__ == "__main__":
     from ..utils import getRandoMBPP
-    chat = ChatApi(getRandoMBPP())
+    from ..config import DEFAULT_PROVIDER
+    chat = ChatApi(getRandoMBPP(), DEFAULT_PROVIDER)
     chat.printModelslst(chat._getClient())
