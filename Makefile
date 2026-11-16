@@ -8,10 +8,10 @@ MAIN	= $(SRC)/__main__.py
 install:
 	uv sync
 
-run: install
-	uv run python -m $(SRC)
+run-mbpp: install
+	uv run python -m $(SRC) agent_mbpp
 
-run-openai:
+run-model_lst:
 	uv run python -m src.api.openai_api
 
 lint: install

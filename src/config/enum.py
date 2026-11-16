@@ -9,6 +9,15 @@ class Provider(ABC):
     NAME = ""
 
 
+class UserProvider(Provider):
+    API_KEY_NAME = "API_KEY"
+    NAME = "UserProvider"
+
+    def __init__(self, provider_url: str, model_name: str):
+        self.URL = provider_url
+        self.DEFAULT_MODEL = model_name
+
+
 class GeminiProvider(Provider):
     API_KEY_NAME = "GEMINI_API_KEY"
     URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
