@@ -3,7 +3,9 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Optional
 
+import fire
 import openai
 import fastmcp
 from fastmcp.client.transports import StdioTransport
@@ -12,32 +14,87 @@ from .api import ChatApi
 from .api.openai_api import getAPIkey
 from .config import (
     DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER,
-    SYSTEM_PROMPT, LLMProvider
+    SYSTEM_PROMPT, Provider, LLMProvider, UserProvider
 )
 
 from .models import SolutionOutput
 from .utils import getRandoMBPP
 
 
-def check_apikeys_available() -> list[LLMProvider]:
+class CLI:
+    def __init__(self):
+        self.provider_lst = check_apikeys_available()
+        if not self.provider_lst:
+            raise ValueError("No API keys are set as environment variables")
+
+    def _addUserModel(self, model_name, provider_url) -> None:
+        if model_name or provider_url:
+            if not (model_name and provider_url):
+                print("model_name and provider_url need to be set if you want to use a user set provider")
+            else:
+                provider = check_apikey()
+                if provider:
+                    self.provider_lst.append(provider)
+
+    def agent_mbpp(
+        self,
+        task_file: str = "",
+        output: str = "output.json",
+        model_name: str = "",
+        provider_url: str = "",
+    ):
+        """Run MBPP"""
+        self._addUserModel(model_name, provider_url)
+
+        solution = asyncio.run(generate_mbpp(self.provider_lst))
+        try:
+            solution_data = solution.model_dump()
+            with open(output, "w", encoding="utf-8") as output_file:
+                json.dump(solution_data, output_file, indent=2)
+        except (OSError, TypeError, ValueError) as e:
+            print(f"Error writing solution to '{output}': {e}")
+
+    def agent_swebench(
+        self,
+        task_file: str = "",
+        output: str = "",
+        model_name: str = "",
+        provider_url: str = "",
+    ):
+        self._addUserModel(model_name, provider_url)
+        ...
+
+
+def check_apikey(provider_url: str, model_name: str) -> Optional[Provider]:
+    provider = UserProvider(provider_url, model_name)
+    try:
+        getAPIkey(provider)
+        return provider
+    except ValueError:
+        print(f"No key found for: {provider.NAME}")
+
+
+def check_apikeys_available() -> list[Provider]:
     provider_lst = []
-    for provider in LLMProvider:
+    for ell in LLMProvider:
+        provider = ell.value
         if provider == DEFAULT_PROVIDER:
             continue
         try:
             getAPIkey(provider)
             provider_lst.append(provider)
         except ValueError:
-            print(f"No key found for: {provider.value.NAME}")
+            print(f"No key found for: {provider.NAME}")
     try:
-        getAPIkey(DEFAULT_PROVIDER)
-        provider_lst.append(DEFAULT_PROVIDER)
+        # to-do: i think this part is broken, check .value, .name, at least one of them is broken
+        getAPIkey(DEFAULT_PROVIDER.value)
+        provider_lst.append(DEFAULT_PROVIDER.value)
     except ValueError:
-        print(f"No key found for: {DEFAULT_PROVIDER.value.NAME}")
+        print(f"No key found for: {DEFAULT_PROVIDER.NAME}")
     return provider_lst
 
 
-async def generate_mbpp(provider_lst: list[LLMProvider]):
+async def generate_mbpp(provider_lst: list[Provider]) -> SolutionOutput:
     question = getRandoMBPP()
     chat = ChatApi(question=question, llm_provider=provider_lst[-1])
 
@@ -84,7 +141,7 @@ async def generate_mbpp(provider_lst: list[LLMProvider]):
                     break
                 chat.setProvider(provider_lst[-1])
 
-    output = SolutionOutput(
+    return SolutionOutput(
         task_id=str(question.task_id),
         benchmark="mbpp",
         success=test_result["success"] if test_result else False,
@@ -98,14 +155,10 @@ async def generate_mbpp(provider_lst: list[LLMProvider]):
         system_prompt=SYSTEM_PROMPT,
         error=error,
     )
-    print(output.model_dump_json(indent=2))
 
 
 def main() -> None:
-    provider_lst = check_apikeys_available()
-    if not provider_lst:
-        raise ValueError("No API keys are set as environment variables")
-    asyncio.run(generate_mbpp(provider_lst))
+    fire.Fire(CLI)
 
 
 if __name__ == "__main__":

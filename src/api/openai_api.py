@@ -10,7 +10,7 @@ from ..config import (
 )
 from ..models import NoCodeBlockFound, NoneMessageError, MBPPTaskInput
 from ..utils import getTest
-from ..config import LLMProvider
+from ..config import Provider
 
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
@@ -22,16 +22,16 @@ def _load_dotenv() -> None:
     load_dotenv()
 
 
-def getAPIkey(provider: LLMProvider) -> str:
+def getAPIkey(provider: Provider) -> str:
     _load_dotenv()
-    API_KEY = os.getenv(provider.value.API_KEY_NAME)
+    API_KEY = os.getenv(provider.API_KEY_NAME)
     if API_KEY is None:
-        raise ValueError(f"{provider.value.API_KEY_NAME} is not set as env variable")
+        raise ValueError(f"{provider.API_KEY_NAME} is not set as env variable")
     return API_KEY
 
 
 class ChatApi():
-    def __init__(self, question: MBPPTaskInput, llm_provider: LLMProvider):
+    def __init__(self, question: MBPPTaskInput, llm_provider: Provider):
         self.setProvider(llm_provider)
         self.setQuestion(question)
 
@@ -50,12 +50,12 @@ class ChatApi():
         self.total_input_tokens = 0
         self.total_output_tokens = 0
 
-    def setProvider(self, llm_provider: LLMProvider) -> None:
+    def setProvider(self, llm_provider: Provider) -> None:
         self.llm_provider = llm_provider
 
     def _getClient(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> openai.OpenAI:
         return openai.OpenAI(
-            base_url=self.llm_provider.value.URL,
+            base_url=self.llm_provider.URL,
             api_key=getAPIkey(self.llm_provider),
             max_retries=0,
             timeout=timeout
@@ -69,7 +69,7 @@ class ChatApi():
     def _countMessageTokens(self, messages: list[dict[str, str]]) -> int:
         try:
             encoding = tiktoken.encoding_for_model(
-                self.llm_provider.value.DEFAULT_MODEL
+                self.llm_provider.DEFAULT_MODEL
             )
         except KeyError:
             encoding = tiktoken.get_encoding("cl100k_base")
@@ -110,7 +110,7 @@ class ChatApi():
         try:
             request_messages = self._getRequestMessages()
             response = client.chat.completions.create(
-                model=self.llm_provider.value.DEFAULT_MODEL,
+                model=self.llm_provider.DEFAULT_MODEL,
                 messages=request_messages,
                 stop=["<end_code>"],
                 max_tokens=DEFAULT_MAX_TOKEN,
@@ -133,7 +133,7 @@ class ChatApi():
 
             return self.extractCode(message)
 
-        except (openai.RateLimitError, openai.BadRequestError) as e:
+        except (openai.RateLimitError, openai.BadRequestError, openai.InternalServerError) as e:
             print(BLUE_LOG_STR, type(e).__name__, flush=True)
             raise
         except NoneMessageError:

@@ -5,7 +5,7 @@ from .config import (
     DEFAULT_TEMPERATURE
 )
 from .prompt import SYSTEM_PROMPT
-from .enum import Provider, LLMProvider
+from .enum import Provider, LLMProvider, UserProvider
 
 __all__ = [
     "OPENROUTER_URL",
@@ -20,5 +20,6 @@ __all__ = [
     "DEFAULT_MAX_ITERATION",
     "DEFAULT_TEMPERATURE",
     "Provider",
-    "LLMProvider"
+    "LLMProvider",
+    "UserProvider"
 ]
