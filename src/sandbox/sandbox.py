@@ -53,6 +53,7 @@ class Sandbox:
         self.timeout = config.max_execution_time_seconds
         self.authorized_imports = config.authorized_imports
         self.max_memory = config.max_memory_mb
+        self.allowed_directories = config.allowed_directories
 
         self.container = Container()
 
@@ -197,7 +198,7 @@ class Sandbox:
         Execute code in a sandboxed python environnement.
 
         Args:
-            code (str): The python code to be executed.
+            code: The python code to be executed.
 
         Returns:
             CalledProcessError: result of an error raised during execution
@@ -211,6 +212,7 @@ class Sandbox:
                 [" ".join(self.authorized_imports), "--single"],
                 self.timeout,
                 self.max_memory,
+                self.allowed_directories,
                 code
             )
 
