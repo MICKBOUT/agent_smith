@@ -12,7 +12,7 @@ def load_json_template(file_path: str | Path) -> SandboxConfig | None:
     Args:
         file_path: the path of the config file.
 
-    Return:
+    Returns:
         SandboxConfig: the loaded model.
         None: if any errors occurs.
     """
@@ -45,7 +45,7 @@ def load_python_file(file_path: str | Path) -> str | None:
     Args:
         file_path: the path of the python file.
 
-    Return:
+    Returns:
         str: the python code.
         None: if any errors occurs.
     """
