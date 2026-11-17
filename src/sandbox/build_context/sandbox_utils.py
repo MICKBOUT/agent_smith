@@ -1,4 +1,5 @@
 # Typing
+import os
 from typing import Any, Callable
 
 
@@ -97,6 +98,11 @@ class SafeBuiltins:
     it contain all allowed builtins used in the sandbox.
     """
     all = {
+
+        # tests - must not be included in final push.
+        "final_answer": lambda x: exit(),
+        "ls": lambda x: os.listdir(x),
+        "open": open,
 
         # STDOUT
         "print": print,

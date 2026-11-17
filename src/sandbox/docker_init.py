@@ -27,18 +27,20 @@ class Container:
             check=True,
         )
 
-    def run(self, args: list[str], timeout: int, max_memory: int, code: str) -> subprocess.CompletedProcess:
+    def run(self, args: list[str], timeout: int,
+            max_memory: int, allowed_directories: list[str], code: str) -> subprocess.CompletedProcess:
         """
-        this method can execute a single bloc of python code
-        in a isolated environnment.
+        execute a single bloc of python code in an isolated
+        environnment.
 
         Args:
             args: list of arguments for the child process.
             timeout: the timout limit for the process.
             max_memory: limit of memory which can be allocate.
+            allowed_directories: list of allowed directories.
             code: the code to be executed.
 
-        Return:
+        Returns:
             CompletedProcess: the result of the process.
         """
 
@@ -46,8 +48,11 @@ class Container:
 
         result = subprocess.run(
             [
-                "docker", "run", "--rm", "--interactive",
-                f"--memory={max_memory}m", f"--memory-swap={max_memory}m", "--network=none",
+                "docker", "run",
+                "--rm",
+                "--interactive",
+                f"--memory={max_memory}m", f"--memory-swap={max_memory}m",
+                "--network=none",
                 IMAGE_NAME, "python", "worker.py", *args,
             ],
             input=code,
@@ -75,7 +80,7 @@ class Container:
             memory_mb: the limit of memory it can be allocated.
             allowed_directories: list of allowed directories
 
-        Return:
+        Returns:
             the process with the name of the container.
 
         Raises

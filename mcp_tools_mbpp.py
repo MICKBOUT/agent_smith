@@ -1,13 +1,11 @@
 """MCP tools used by the MBPP agent."""
 
 import json
-
 from fastmcp import FastMCP
 
 from src.models import SandboxConfig, SandboxError
 from src.sandbox.sandbox import Sandbox
 from src.utils import sanitizeImport, createProgram
-
 
 mcp = FastMCP("MBPP tools")
 sandbox: Sandbox | None = None
@@ -39,3 +37,7 @@ def run_tests(code: str, test_list: list[str], test_imports: list[str]) -> str:
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
+
+    # print(read_file("Makefile", 1, 5))
+    # print(list_files(".", "*.py"))
+    # run_command("ls -a", "/tmp")
