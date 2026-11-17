@@ -188,6 +188,10 @@ def search_function_or_class_definition_in_code(name: str) -> str:
 
 @mcp.tool
 def find_references(name: str, filepath: str, line):
+    """
+    Find all usages of a symbol (function or class).
+    The output format must be similar to search_code format.
+    """
     ...
 
 
