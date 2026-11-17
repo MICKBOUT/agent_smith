@@ -8,7 +8,7 @@ __all__ = [
     "SandboxError",
     "SandboxConfig",
     "MBPPTaskInput",
-    "SolutionOutput"
+    "SolutionOutput",
     "StepMetrics",
     "LLmGenerationOutput"
 ]

@@ -7,7 +7,7 @@ from ..config import (
 )
 from ..models import NoCodeBlockFound, NoneMessageError, MBPPTaskInput, LLmGenerationOutput
 from ..utils import getTest, getAPIkey, createProgram
-from ..config import Provider
+from ..config import Provider, DEFAULT_PROVIDER
 
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
@@ -152,5 +152,5 @@ class ChatApi():
 
 if __name__ == "__main__":
     from ..utils import getRandoMBPP
-    chat = ChatApi(getRandoMBPP())
+    chat = ChatApi(getRandoMBPP(), DEFAULT_PROVIDER)
     chat.printModelslst(chat._getClient())

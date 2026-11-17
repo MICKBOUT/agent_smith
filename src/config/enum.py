@@ -61,9 +61,9 @@ class OpenAIProvider(Provider):
 
 
 class LLMProvider(Enum):
-    GEMIN = GeminiProvider
-    OPENROUTER = OpenRouterProvider
-    TOGETHERIA = TogetherIaProvider
-    GROQ = GroqProvider
-    COHER = CoherProvider
-    OPENAI = OpenAIProvider
+    GEMIN = GeminiProvider()
+    OPENROUTER = OpenRouterProvider()
+    TOGETHERIA = TogetherIaProvider()
+    GROQ = GroqProvider()
+    COHER = CoherProvider()
+    OPENAI = OpenAIProvider()
