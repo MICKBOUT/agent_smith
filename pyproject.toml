@@ -18,6 +18,10 @@ dependencies = [
 [tool.flake8]
 extend-ignore = ["E501"]
 
+[[tool.mypy.overrides]]
+module = ["fire"]
+ignore_missing_imports = true
+
 [project.scripts]
 sandbox = "sandbox.sandbox:main"
 
