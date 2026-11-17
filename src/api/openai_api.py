@@ -1,6 +1,3 @@
-import os
-from functools import lru_cache
-
 import openai
 import tiktoken
 
@@ -9,25 +6,11 @@ from ..config import (
     DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN, MAX_INPUT_TOKENS
 )
 from ..models import NoCodeBlockFound, NoneMessageError, MBPPTaskInput
-from ..utils import getTest
+from ..utils import getTest, getAPIkey
 from ..config import Provider
 
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
-
-
-@lru_cache(maxsize=1)
-def _load_dotenv() -> None:
-    from dotenv import load_dotenv
-    load_dotenv()
-
-
-def getAPIkey(provider: Provider) -> str:
-    _load_dotenv()
-    API_KEY = os.getenv(provider.API_KEY_NAME)
-    if API_KEY is None:
-        raise ValueError(f"{provider.API_KEY_NAME} is not set as env variable")
-    return API_KEY
 
 
 class ChatApi():

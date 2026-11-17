@@ -1,6 +1,9 @@
-from .openai_api import ChatApi
+from .openai_api import ChatApi, getAPIkey
 
-__all__ = ["ChatApi"]
+__all__ = [
+    "getAPIkey",
+    "ChatApi"
+]
 
 # # fix: this is needed if the code has a Runtime warning 'src.api.openai_api' found in sys.modules''
 # def __getattr__(name: str):

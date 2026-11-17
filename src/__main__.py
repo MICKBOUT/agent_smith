@@ -10,15 +10,14 @@ import openai
 import fastmcp
 from fastmcp.client.transports import StdioTransport
 
-from .api import ChatApi
-from .api.openai_api import getAPIkey
+from .api import ChatApi, getAPIkey
 from .config import (
-    DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION, DEFAULT_PROVIDER,
-    SYSTEM_PROMPT, Provider, LLMProvider, UserProvider
+    DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION,
+    SYSTEM_PROMPT, Provider, UserProvider
 )
 
 from .models import SolutionOutput
-from .utils import getRandoMBPP
+from .utils import getRandoMBPP, check_apikeys_available
 
 
 class CLI:
@@ -32,7 +31,7 @@ class CLI:
             if not (model_name and provider_url):
                 print("model_name and provider_url need to be set if you want to use a user set provider")
             else:
-                provider = check_apikey()
+                provider = check_apikey(provider_url, model_name)
                 if provider:
                     self.provider_lst.append(provider)
 
@@ -72,26 +71,7 @@ def check_apikey(provider_url: str, model_name: str) -> Optional[Provider]:
         return provider
     except ValueError:
         print(f"No key found for: {provider.NAME}")
-
-
-def check_apikeys_available() -> list[Provider]:
-    provider_lst = []
-    for ell in LLMProvider:
-        provider = ell.value
-        if provider == DEFAULT_PROVIDER:
-            continue
-        try:
-            getAPIkey(provider)
-            provider_lst.append(provider)
-        except ValueError:
-            print(f"No key found for: {provider.NAME}")
-    try:
-        # to-do: i think this part is broken, check .value, .name, at least one of them is broken
-        getAPIkey(DEFAULT_PROVIDER.value)
-        provider_lst.append(DEFAULT_PROVIDER.value)
-    except ValueError:
-        print(f"No key found for: {DEFAULT_PROVIDER.NAME}")
-    return provider_lst
+    return None
 
 
 async def generate_mbpp(provider_lst: list[Provider]) -> SolutionOutput:
