@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from sandbox import SandboxError
+from . import SandboxError
 
 IMAGE_NAME = "agent-smith-sandbox:local"
 CONTROL_DIRECTORY = "/run/sandbox-control"
