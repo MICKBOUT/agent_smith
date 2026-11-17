@@ -14,6 +14,7 @@ import tempfile
 import uuid
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 from ..models import SandboxError, SandboxConfig
 
@@ -252,9 +253,33 @@ def parse_args() -> tuple[SandboxConfig, str | None] | None:
         help="Execute a single python file."
     )
 
+    parser.add_argument(
+        "--mcp-stdio",
+        type=Path,
+        default=None,
+        help="Allow to run sandbox with MBPP tools. (stdio)"
+    )
+
+    parser.add_argument(
+        "--mcp-server",
+        default=None,
+        help="Allow to run sandbox with MBPP tools. (http)"
+    )
+
     model = None
-    args = parser.parse_args()
     code = None
+    args = parser.parse_args()
+
+    if args.mcp_server is not None and args.mcp_stdio is not None:
+        raise SandboxError("You can't use stdio + http mode for MCP!")
+
+    if args.mcp_server is not None and not bool(urlparse(args.mcp_server).netloc):
+        raise ValueError(f"{args.mcp_server} is not valid for mcp server!")
+    if (
+        args.mcp_stdio is not None and
+        (not args.mcp_stdio.exists() or not args.mcp_stdio.is_file())
+    ):
+        raise ValueError(f"{args.mcp_stdio} is not a valid file!")
 
     if args.execute is not None:
         code = load_python_file(args.execute)
