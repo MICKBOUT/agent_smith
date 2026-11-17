@@ -12,7 +12,7 @@ mcp = FastMCP("MBPP tools")
 # File System Tools
 
 
-def validate_mcp_paths(path: str, file: bool = True) -> None:
+def validate_mcp_paths(path_str: str, file: bool = True) -> Path:
     """
     This function validate a path.
 
@@ -29,10 +29,10 @@ def validate_mcp_paths(path: str, file: bool = True) -> None:
         ValueError: If the path is not valid.
     """
 
-    path = Path(path)
+    path = Path(path_str)
 
     if not path.exists():
-        raise FileNotFoundError(f"File {path} not found!")
+        raise FileNotFoundError(f"File {path_str} not found!")
 
     try:
         if path != path.resolve():
@@ -41,9 +41,9 @@ def validate_mcp_paths(path: str, file: bool = True) -> None:
         raise err
 
     if file and not path.is_file():
-        raise ValueError(f"Expected a file for {path}")
+        raise ValueError(f"Expected a file for {path_str}")
     elif not file and not path.is_dir():
-        raise ValueError(f"Expected a directory. for {path}")
+        raise ValueError(f"Expected a directory. for {path_str}")
 
     return path
 
@@ -123,7 +123,7 @@ def edit_file(filepath: str, old_str: str, new_str: str) -> None:
 
 
 @mcp.tool
-def list_files(directory: str, pattern: str) -> str | None:
+def list_files(directory_str: str, pattern: str) -> str | None:
     """
     This functions take a target directory and return all the files in,
     according to the glob pattern.
@@ -135,7 +135,7 @@ def list_files(directory: str, pattern: str) -> str | None:
     Returns:
         str: all the files | Error message
     """
-    directory = validate_mcp_paths(directory, file=False)
+    directory = validate_mcp_paths(directory_str, file=False)
 
     files = glob.glob(pattern, root_dir=directory)
     resolved = [str(Path(file).resolve()) for file in files]
@@ -196,7 +196,7 @@ def find_references(name: str, filepath: str, line):
 
 
 @mcp.tool
-def run_command(command: str, workdir: str) -> str:
+def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
     """
     Execute a shell command in the specified working directory.
     Returns the command stdout, stderr, and exit code.
@@ -208,14 +208,14 @@ def run_command(command: str, workdir: str) -> str:
     Returns:
         str: stdout + stderr + exit code.
     """
-    workdir = validate_mcp_paths(workdir, file=False)
+    workdir = validate_mcp_paths(workdir_str, file=False)
     # todo validation
     target = f"cd {workdir};"
     result = subprocess.run(target + command, shell=True)
     return (
-        result.stdout if result.stdout else "" +
-        result.stderr if result.stderr else "" +
-        f"exit code ({str(result.returncode)})"
+        str(result.stdout) if result.stdout else "",
+        str(result.stderr) if result.stderr else "",
+        result.returncode
     )
 
 
