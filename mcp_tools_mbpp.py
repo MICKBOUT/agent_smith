@@ -14,7 +14,7 @@ sandbox: Sandbox | None = None
 
 
 @mcp.tool
-def run_tests(code: str, test_list: list[str], test_imports: list[str] | None = None) -> str:
+def run_tests(code: str, test_list: list[str], test_imports: list[str]) -> str:
     """Run a candidate solution against MBPP assertion tests."""
     program = createProgram(code, test_list, test_imports)
 

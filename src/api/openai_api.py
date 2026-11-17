@@ -1,5 +1,7 @@
-import openai
+from typing import cast
+
 import tiktoken
+import openai
 
 from ..config import (
     SYSTEM_PROMPT, DEFAULT_TEMPERATURE,
@@ -94,7 +96,7 @@ class ChatApi():
             request_messages = self._getRequestMessages()
             response = client.chat.completions.create(
                 model=self.llm_provider.MODEL_NAME,
-                messages=request_messages,
+                messages=cast(list[openai.types.chat.ChatCompletionMessageParam], request_messages),
                 stop=["<end_code>"],
                 max_tokens=DEFAULT_MAX_TOKEN,
                 temperature=DEFAULT_TEMPERATURE
@@ -110,15 +112,17 @@ class ChatApi():
                 raise NoneMessageError
 
             usage = getattr(response, "usage", None)
+            input_tokens, output_tokens = 0, 0
             if usage is not None:
-                self.total_input_tokens += usage.prompt_tokens or 0
-                self.total_output_tokens += usage.completion_tokens or 0
+                input_tokens, output_tokens = usage.prompt_tokens or 0, usage.completion_tokens or 0
+            self.total_input_tokens += input_tokens
+            self.total_output_tokens += output_tokens
             code = self.extractCode(message)
             return LLmGenerationOutput(
                 response=message,
                 code=code,
-                input_tokens=usage.prompt_tokens or 0,
-                output_tokens=usage.completion_tokens or 0,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
                 sandbox_input=createProgram(code, self.question.test_list, self.question.test_imports),
             )
 
