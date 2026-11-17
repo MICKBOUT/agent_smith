@@ -1,6 +1,3 @@
-import os
-from functools import lru_cache
-
 import openai
 import tiktoken
 
@@ -8,26 +5,12 @@ from ..config import (
     SYSTEM_PROMPT, DEFAULT_TEMPERATURE,
     DEFAULT_REQUEST_TIMEOUT, DEFAULT_MAX_TOKEN, MAX_INPUT_TOKENS
 )
-from ..models import NoCodeBlockFound, NoneMessageError, MBPPTaskInput
-from ..utils import getTest
-from ..config import Provider
+from ..models import NoCodeBlockFound, NoneMessageError, MBPPTaskInput, LLmGenerationOutput
+from ..utils import getTest, getAPIkey, createProgram
+from ..config import Provider, DEFAULT_PROVIDER
 
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
-
-
-@lru_cache(maxsize=1)
-def _load_dotenv() -> None:
-    from dotenv import load_dotenv
-    load_dotenv()
-
-
-def getAPIkey(provider: Provider) -> str:
-    _load_dotenv()
-    API_KEY = os.getenv(provider.API_KEY_NAME)
-    if API_KEY is None:
-        raise ValueError(f"{provider.API_KEY_NAME} is not set as env variable")
-    return API_KEY
 
 
 class ChatApi():
@@ -69,7 +52,7 @@ class ChatApi():
     def _countMessageTokens(self, messages: list[dict[str, str]]) -> int:
         try:
             encoding = tiktoken.encoding_for_model(
-                self.llm_provider.DEFAULT_MODEL
+                self.llm_provider.MODEL_NAME
             )
         except KeyError:
             encoding = tiktoken.get_encoding("cl100k_base")
@@ -106,11 +89,11 @@ class ChatApi():
             raise NoCodeBlockFound("unclosed code block")
         return message[start:end].strip()
 
-    def _genCode(self, client: openai.OpenAI) -> str:
+    def _genCode(self, client: openai.OpenAI) -> LLmGenerationOutput:
         try:
             request_messages = self._getRequestMessages()
             response = client.chat.completions.create(
-                model=self.llm_provider.DEFAULT_MODEL,
+                model=self.llm_provider.MODEL_NAME,
                 messages=request_messages,
                 stop=["<end_code>"],
                 max_tokens=DEFAULT_MAX_TOKEN,
@@ -130,14 +113,21 @@ class ChatApi():
             if usage is not None:
                 self.total_input_tokens += usage.prompt_tokens or 0
                 self.total_output_tokens += usage.completion_tokens or 0
-
-            return self.extractCode(message)
+            code = self.extractCode(message)
+            return LLmGenerationOutput(
+                response=message,
+                code=code,
+                input_tokens=usage.prompt_tokens or 0,
+                output_tokens=usage.completion_tokens or 0,
+                sandbox_input=createProgram(code, self.question.test_list, self.question.test_imports),
+            )
 
         except (openai.RateLimitError, openai.BadRequestError, openai.InternalServerError) as e:
             print(BLUE_LOG_STR, type(e).__name__, flush=True)
             raise
         except NoneMessageError:
             print(BLUE_LOG_STR, "None Message RETRY", flush=True)
+            raise
         except NoCodeBlockFound as e:
             print(BLUE_LOG_STR, "No CodeBlock Found\n", flush=True)
             self.messages.append({"role": "assistant", "content": message})
@@ -145,14 +135,15 @@ class ChatApi():
                 "role": "user",
                 "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
             })
+            raise
         return ""
 
-    def generateSandboxCode(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> str:
+    def generateSandboxCode(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> LLmGenerationOutput:
         # client http so regenerate each time for connection timeout issue
         request_timeout = min(timeout, DEFAULT_REQUEST_TIMEOUT)
         with self._getClient(request_timeout) as client:
-            llm_code = self._genCode(client)
-        return llm_code
+            output = self._genCode(client)
+        return output
 
     def addLog(self, message: str) -> None:
         self.messages.append({"role": "system", "content": message})
@@ -161,5 +152,5 @@ class ChatApi():
 
 if __name__ == "__main__":
     from ..utils import getRandoMBPP
-    chat = ChatApi(getRandoMBPP())
+    chat = ChatApi(getRandoMBPP(), DEFAULT_PROVIDER)
     chat.printModelslst(chat._getClient())

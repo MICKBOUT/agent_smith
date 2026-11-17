@@ -5,4 +5,3 @@ class SandboxError(Exception):
         super().__init__(
             f"{self.RED}{self.BOLD}SandboxError {self.RESET}: {message}"
         )
-

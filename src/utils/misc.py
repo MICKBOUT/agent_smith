@@ -14,3 +14,8 @@ def addTest(code: str, question: MBPPTaskInput) -> str:
 
 def sanitizeImport(modules: list[str]):
     return [ell for ell in modules if ell[:7] == "import "]
+
+
+def createProgram(code: str, test_list: list[str], test_imports: list[str] | None) -> str:
+    test_imports = test_imports or []
+    return "\n".join([*test_imports, code, *test_list])
