@@ -16,7 +16,7 @@ from .config import (
     SYSTEM_PROMPT, Provider, UserProvider
 )
 
-from .models import SolutionOutput
+from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound
 from .utils import getRandoMBPP, check_apikeys_available
 
 
@@ -85,30 +85,40 @@ async def generate_mbpp(provider_lst: list[Provider]) -> SolutionOutput:
 
     start_time = time.monotonic()
     generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
-    code = ""
     error = None
-    iterations = 0
+    steps = []
 
     async with client:
-        for iteration in range(DEFAULT_MAX_ITERATION):
-            iterations = iteration + 1
+        for iteration in range(1, DEFAULT_MAX_ITERATION + 1):
             remaining_time = generation_deadline - time.monotonic()
             if remaining_time < 0:
                 error = "Generation timed out"
                 break
 
             try:
-                code = chat.generateSandboxCode(timeout=remaining_time)
-                result = await client.call_tool(
+                llm_generation_output = chat.generateSandboxCode(timeout=remaining_time)
+                sandbox_result = await client.call_tool(
                     "run_tests",
                     {
-                        "code": code,
+                        "code": llm_generation_output.code,
                         "test_list": question.test_list,
                         "test_imports": question.test_imports,
                     },
                 )
-                test_result = json.loads(result.data)
+                test_result = json.loads(sandbox_result.data)
                 if test_result["success"]:
+                    steps.append(StepMetrics(
+                        step=iteration,
+                        input_tokens=llm_generation_output.input_tokens,
+                        output_tokens=llm_generation_output.output_tokens,
+                        request_time_ms=remaining_time + time.monotonic() - generation_deadline,
+                        api_url=chat.llm_provider.URL,
+                        model_name=chat.llm_provider.MODEL_NAME,
+                        llm_output=llm_generation_output.response,
+                        sandbox_input=llm_generation_output.sandbox_input,
+                        sandbox_output=test_result["output"],
+                        retries=0
+                    ))
                     print("\033[32mDone\033[0m")
                     break
 
@@ -120,18 +130,20 @@ async def generate_mbpp(provider_lst: list[Provider]) -> SolutionOutput:
                     error = "No provider available"
                     break
                 chat.setProvider(provider_lst[-1])
+            except (NoneMessageError, NoCodeBlockFound):
+                continue
 
     return SolutionOutput(
         task_id=str(question.task_id),
         benchmark="mbpp",
         success=test_result["success"] if test_result else False,
-        solution=code,
-        iterations=iterations,
-        total_requests=iterations,
+        solution=llm_generation_output.code,
+        iterations=iteration,
+        total_requests=iteration,
         total_input_tokens=chat.total_input_tokens,
         total_output_tokens=chat.total_output_tokens,
         total_time_seconds=time.monotonic() - start_time,
-        steps=[],
+        steps=steps,
         system_prompt=SYSTEM_PROMPT,
         error=error,
     )

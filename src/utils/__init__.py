@@ -1,6 +1,6 @@
 from .random_question import getRandoMBPP
-from .misc import addTest, sanitizeImport, getTest
-from .api_utils import check_apikeys_available, getAPIkey
+from .misc import addTest, sanitizeImport, getTest, createProgram
+from .api_utils import check_apikeys_available, getAPIkey, extractCode
 
 __all__ = [
     "getRandoMBPP",
@@ -8,5 +8,7 @@ __all__ = [
     "sanitizeImport",
     "getTest",
     "check_apikeys_available",
-    "getAPIkey"
+    "getAPIkey",
+    "createProgram",
+    "extractCode"
 ]
