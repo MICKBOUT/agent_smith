@@ -2,6 +2,8 @@ from pathlib import Path
 from fastmcp import FastMCP
 from itertools import islice
 
+import fnmatch
+import re
 import subprocess
 import glob
 
@@ -144,13 +146,44 @@ def list_files(directory: str, pattern: str) -> str | None:
 
 
 @mcp.tool
-def search_code(pattern: str, file_pattern: str):
-    ...
+def search_code(pattern: str, file_pattern: str) -> str:
+    """
+    Perform a grep-like search in the codebase.
+
+    Args:
+        pattern: the pattern expression to find in.
+        file_pattern: expected files.
+
+    Returns:
+        str: /absolute/path_to_file.py:<line_number> <line_content>
+    """
+    black_list = {".git", ".venv", "__pycache__", ".mypy_cache"}
+    matches = ""
+    for path in Path('.').rglob('*'):
+        if any(part in black_list for part in path.parts):
+            continue
+
+        if path.is_file() and fnmatch.fnmatch(path, file_pattern):
+            with open(path, "r") as f:
+                for i, line in enumerate(f.readlines(), start=1):
+                    if re.search(pattern, line):
+                        absolute = path.resolve()
+                        matches += f"{absolute}:{i} {line}"
+    return matches
 
 
 @mcp.tool
-def search_function_or_class_definition_in_code(name: str):
-    ...
+def search_function_or_class_definition_in_code(name: str) -> str:
+    """
+    Find the definition of a function or a class.
+
+    Args:
+        name: the name of the class or function to search.
+
+    Returns:
+        str: the matches.
+    """
+    return search_code(f"class {name}", "*.py") + search_code(f"def {name}", "*.py")
 
 
 @mcp.tool
@@ -196,3 +229,9 @@ if __name__ == "__main__":
 
     print("read_file()")
     print(read_file("/tmp/test.txt", 1, 999))
+
+    print("search_code()")
+    print(search_code("2>/dev", "*.py"))
+
+    print("search_function_or_class_definition_in_code()")
+    print(search_function_or_class_definition_in_code("Sandbox"))
