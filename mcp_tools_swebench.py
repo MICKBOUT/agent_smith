@@ -7,7 +7,7 @@ import re
 import subprocess
 import glob
 
-mcp = FastMCP("MBPP tools")
+mcp = FastMCP("SWE tools")
 
 # File System Tools
 
@@ -209,7 +209,6 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
         str: stdout + stderr + exit code.
     """
     workdir = validate_mcp_paths(workdir_str, file=False)
-    # todo validation
     target = f"cd {workdir};"
     result = subprocess.run(target + command, shell=True)
     return (
