@@ -210,12 +210,16 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
     """
     workdir = validate_mcp_paths(workdir_str, file=False)
     target = f"cd {workdir};"
-    result = subprocess.run(target + command, shell=True)
+    result = subprocess.run(target + command, shell=True, capture_output=True)
     return (
         str(result.stdout) if result.stdout else "",
         str(result.stderr) if result.stderr else "",
         result.returncode
     )
+
+
+def get_patch() -> str:
+    return run_command("git --no-pager diff", ".")
 
 
 if __name__ == "__main__":
@@ -238,3 +242,6 @@ if __name__ == "__main__":
 
     print("search_function_or_class_definition_in_code()")
     print(search_function_or_class_definition_in_code("Sandbox"))
+
+    print("get_patch()")
+    print(get_patch())
