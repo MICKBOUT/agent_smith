@@ -224,24 +224,26 @@ def get_patch() -> str:
 
 if __name__ == "__main__":
     # MCP tools Tests
-    print("run_command()")
-    print(run_command("touch test.txt; echo 'writing in test.txt' > test.txt", "/tmp"))
-    print(run_command("echo '\ntext files in /tmp:'; find . -name *.txt 2>/dev/null", "/tmp"))
+    # print("run_command()")
+    # print(run_command("touch test.txt; echo 'writing in test.txt' > test.txt", "/tmp"))
+    # print(run_command("echo '\ntext files in /tmp:'; find . -name *.txt 2>/dev/null", "/tmp"))
 
-    print("\nlist_files()")
-    print(list_files("/tmp", "*.txt"))
+    # print("\nlist_files()")
+    # print(list_files("/tmp", "*.txt"))
 
-    print("edit_file()")
-    edit_file("/tmp/test.txt", "writing", "editing")
+    # print("edit_file()")
+    # edit_file("/tmp/test.txt", "writing", "editing")
 
-    print("read_file()")
-    print(read_file("/tmp/test.txt", 1, 999))
+    # print("read_file()")
+    # print(read_file("/tmp/test.txt", 1, 999))
 
-    print("search_code()")
-    print(search_code("2>/dev", "*.py"))
+    # print("search_code()")
+    # print(search_code("2>/dev", "*.py"))
 
-    print("search_function_or_class_definition_in_code()")
-    print(search_function_or_class_definition_in_code("Sandbox"))
+    # print("search_function_or_class_definition_in_code()")
+    # print(search_function_or_class_definition_in_code("Sandbox"))
 
-    print("get_patch()")
-    print(get_patch())
+    # print("get_patch()")
+    # print(get_patch())
+
+    mcp.run(transport="stdio")
