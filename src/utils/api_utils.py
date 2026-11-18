@@ -23,6 +23,11 @@ def _load_dotenv() -> None:
     load_dotenv()
 
 
+def get_env_var(var_name: str) -> str:
+    _load_dotenv()
+    return os.getenv(var_name)
+
+
 def getAPIkey(provider: Provider) -> str:
     _load_dotenv()
     API_KEY = os.getenv(provider.API_KEY_NAME)

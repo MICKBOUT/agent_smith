@@ -17,7 +17,7 @@ from .config import (
 )
 
 from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound, MBPPTaskInput
-from .utils import check_apikeys_available, load_mbpp_question
+from .utils import check_apikeys_available, load_mbpp_question, load_swe_question
 
 
 class CLI:
@@ -43,9 +43,9 @@ class CLI:
         provider_url: str = "",
     ) -> None:
         """Run MBPP"""
-        question = load_mbpp_question(task_file)
-
         self._addUserModel(model_name, provider_url)
+
+        question = load_mbpp_question(task_file)
         solution = asyncio.run(generate_mbpp(self.provider_lst, question))
         try:
             solution_data = solution.model_dump()
@@ -62,7 +62,7 @@ class CLI:
         provider_url: str = "",
     ) -> None:
         self._addUserModel(model_name, provider_url)
-        ...
+        question = load_swe_question(task_file)
 
 
 def check_apikey(provider_url: str, model_name: str) -> Optional[Provider]:
