@@ -16,17 +16,17 @@ from .config import (
     SYSTEM_PROMPT, Provider, UserProvider
 )
 
-from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound
-from .utils import getRandoMBPP, check_apikeys_available
+from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound, MBPPTaskInput
+from .utils import check_apikeys_available, load_mbpp_question
 
 
 class CLI:
-    def __init__(self):
+    def __init__(self) -> None:
         self.provider_lst = check_apikeys_available()
         if not self.provider_lst:
             raise ValueError("No API keys are set as environment variables")
 
-    def _addUserModel(self, model_name, provider_url) -> None:
+    def _addUserModel(self, model_name: str, provider_url: str) -> None:
         if model_name or provider_url:
             if not (model_name and provider_url):
                 print("model_name and provider_url need to be set if you want to use a user set provider")
@@ -37,15 +37,16 @@ class CLI:
 
     def agent_mbpp(
         self,
-        task_file: str = "",
+        task_file: str = "datasets/mbpp/task.json",
         output: str = "output.json",
         model_name: str = "",
         provider_url: str = "",
-    ):
+    ) -> None:
         """Run MBPP"""
-        self._addUserModel(model_name, provider_url)
+        question = load_mbpp_question(task_file)
 
-        solution = asyncio.run(generate_mbpp(self.provider_lst))
+        self._addUserModel(model_name, provider_url)
+        solution = asyncio.run(generate_mbpp(self.provider_lst, question))
         try:
             solution_data = solution.model_dump()
             with open(output, "w", encoding="utf-8") as output_file:
@@ -55,11 +56,11 @@ class CLI:
 
     def agent_swebench(
         self,
-        task_file: str = "",
+        task_file: str = "datasets/swebench/task.json",
         output: str = "",
         model_name: str = "",
         provider_url: str = "",
-    ):
+    ) -> None:
         self._addUserModel(model_name, provider_url)
         ...
 
@@ -74,8 +75,7 @@ def check_apikey(provider_url: str, model_name: str) -> Optional[Provider]:
     return None
 
 
-async def generate_mbpp(provider_lst: list[Provider]) -> SolutionOutput:
-    question = getRandoMBPP()
+async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -> SolutionOutput:
     chat = ChatApi(question=question, llm_provider=provider_lst[-1])
 
     print(

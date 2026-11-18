@@ -1,5 +1,5 @@
 from .exception import NoCodeBlockFound, NoneMessageError, SandboxError
-from .models_public import SandboxConfig, MBPPTaskInput, SolutionOutput, StepMetrics
+from .models_public import SandboxConfig, MBPPTaskInput, SWEBenchTaskInput, SolutionOutput, StepMetrics
 from .models_customs import LLmGenerationOutput
 
 __all__ = [
@@ -8,6 +8,7 @@ __all__ = [
     "SandboxError",
     "SandboxConfig",
     "MBPPTaskInput",
+    "SWEBenchTaskInput",
     "SolutionOutput",
     "StepMetrics",
     "LLmGenerationOutput"

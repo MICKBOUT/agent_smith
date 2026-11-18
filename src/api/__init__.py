@@ -1,7 +1,6 @@
-from .openai_api import ChatApi, getAPIkey
+from .openai_api import ChatApi
 
 __all__ = [
-    "getAPIkey",
     "ChatApi"
 ]
 

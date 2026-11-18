@@ -155,6 +155,11 @@ class ChatApi():
 
 
 if __name__ == "__main__":
-    from ..utils import getRandoMBPP
-    chat = ChatApi(getRandoMBPP(), DEFAULT_PROVIDER)
+    import json
+
+    with open("datasets/mbpp/task.json") as file:
+        conetent = json.load(file)
+        question = MBPPTaskInput.model_validate(conetent)
+
+    chat = ChatApi(question, DEFAULT_PROVIDER)
     chat.printModelslst(chat._getClient())

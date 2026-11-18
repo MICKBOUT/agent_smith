@@ -8,6 +8,12 @@ MAIN	= $(SRC)/__main__.py
 install:
 	uv sync
 
+get-task-mbpp:
+	cd .dev/moulinette && uv run moulinette_eval dump mbpp --output ../../datasets/mbpp/task.json
+
+get-task-swebench:
+	cd .dev/moulinette && uv run moulinette_eval dump swebench --output ../../datasets/swebench/task.json
+
 run-mbpp: install
 	uv run python -m $(SRC) agent_mbpp
 
