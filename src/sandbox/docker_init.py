@@ -1,4 +1,7 @@
+import json
+import socket
 import subprocess
+import tempfile
 
 from pathlib import Path
 from uuid import uuid4
@@ -8,6 +11,7 @@ from . import SandboxError
 IMAGE_NAME = "agent-smith-sandbox:local"
 CONTROL_DIRECTORY = "/run/sandbox-control"
 CONTROL_SOCKET = f"{CONTROL_DIRECTORY}/sandbox.sock"
+FINAL_ANSWER_SOCKET = f"{CONTROL_DIRECTORY}/final-answer.sock"
 
 
 class Container:
@@ -46,21 +50,38 @@ class Container:
 
         print(self.MSG)
 
-        result = subprocess.run(
-            [
+        with tempfile.TemporaryDirectory(prefix="sandbox-control-") as directory:
+            socket_path = Path(directory) / "final-answer.sock"
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+            listener.bind(str(socket_path))
+            socket_path.chmod(0o666)
+            listener.settimeout(0.1)
+
+            command = [
                 "docker", "run",
                 "--rm",
                 "--interactive",
                 f"--memory={max_memory}m", f"--memory-swap={max_memory}m",
                 "--network=none",
-                IMAGE_NAME, "python", "worker.py", *args,
-            ],
-            input=code,
-            text=True,
-            capture_output=True,
-            check=True,
-            timeout=timeout
-        )
+                "--mount",
+                f"type=bind,source={directory},target={CONTROL_DIRECTORY}",
+                IMAGE_NAME, "python", "worker.py", *args, FINAL_ANSWER_SOCKET,
+            ]
+            try:
+                result = subprocess.run(
+                    command,
+                    input=code,
+                    text=True,
+                    capture_output=True,
+                    check=True,
+                    timeout=timeout,
+                )
+                try:
+                    result.final_answer = json.loads(listener.recv(200_000))
+                except (socket.timeout, BlockingIOError):
+                    result.final_answer = None
+            finally:
+                listener.close()
 
         return result
 

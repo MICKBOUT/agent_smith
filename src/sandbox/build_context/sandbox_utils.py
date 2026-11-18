@@ -1,10 +1,13 @@
 # Typing
+import json
 import os
+import socket
 from typing import Any, Callable
 
 
 Builtins = dict[str, object]
 NameSpace = dict[str, Builtins]
+FINAL_ANSWER_MAX_BYTES = 200_000
 
 
 class SandboxError(Exception):
@@ -72,7 +75,10 @@ def create_safe_import(authorized_imports: list[str]) -> Callable:
     return safe_import
 
 
-def get_new_namespace(authorized_imports: list[str]) -> NameSpace:
+def get_new_namespace(
+    authorized_imports: list[str],
+    final_answer_socket: str | None = None,
+) -> NameSpace:
     """
     function to get a new namespace.
     Args:
@@ -81,9 +87,25 @@ def get_new_namespace(authorized_imports: list[str]) -> NameSpace:
     Returns:
         NameSpace: The new namespace.
     """
-    without_import = {
-        "__builtins__": SafeBuiltins.all
-    }
+    builtins = SafeBuiltins.all.copy()
+
+    def submit_final_answer(answer: str) -> None:
+        if not isinstance(answer, str):
+            raise TypeError("final_answer expects a string")
+        if final_answer_socket is None:
+            raise SandboxError("final_answer is unavailable in this execution")
+
+        payload = json.dumps(answer).encode("utf-8")
+        if len(payload) > FINAL_ANSWER_MAX_BYTES:
+            raise SandboxError("final_answer is too large")
+
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sender:
+            sender.connect(final_answer_socket)
+            sender.send(payload)
+        raise SystemExit(0)
+
+    builtins["final_answer"] = submit_final_answer
+    without_import = {"__builtins__": builtins}
 
     without_import["__builtins__"].update(
         {"__import__": create_safe_import(authorized_imports)}
@@ -100,7 +122,6 @@ class SafeBuiltins:
     all = {
 
         # tests - must not be included in final push.
-        "final_answer": lambda x: exit(),
         "ls": lambda x: os.listdir(x),
         "open": open,
 
