@@ -210,7 +210,7 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
     """
     workdir = validate_mcp_paths(workdir_str, file=False)
     target = f"cd {workdir};"
-    result = subprocess.run(target + command, shell=True)
+    result = subprocess.run(target + command, shell=True, capture_output=True)
     return (
         str(result.stdout) if result.stdout else "",
         str(result.stderr) if result.stderr else "",
