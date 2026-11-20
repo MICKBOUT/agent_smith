@@ -16,7 +16,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 
-from ..models import SandboxError, SandboxConfig
+from models import SandboxError, SandboxConfig
 
 from .docker_init import Container, CONTROL_SOCKET, FINAL_ANSWER_SOCKET
 from .sandbox_loader import load_python_file, load_json_template

@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from uuid import uuid4
 
-from . import SandboxError
+from models import SandboxError
 
 IMAGE_NAME = "agent-smith-sandbox:local"
 CONTROL_DIRECTORY = "/run/sandbox-control"

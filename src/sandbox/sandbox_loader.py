@@ -2,7 +2,7 @@ import json
 
 from pathlib import Path
 
-from ..models import SandboxConfig
+from models import SandboxConfig
 
 
 def load_json_template(file_path: str | Path) -> SandboxConfig | None:
