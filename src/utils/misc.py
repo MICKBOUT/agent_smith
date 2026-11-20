@@ -1,6 +1,6 @@
 import json
 
-from ..models import MBPPTaskInput, SWEBenchTaskInput
+from models import MBPPTaskInput, SWEBenchTaskInput
 
 
 def getTest(question: MBPPTaskInput) -> str:

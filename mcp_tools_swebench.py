@@ -7,9 +7,13 @@ import re
 import subprocess
 import glob
 
+from utils import get_env_var
+
 mcp = FastMCP("SWE tools")
 
+
 # File System Tools
+WORKDIR = ""
 
 
 def validate_mcp_paths(path_str: str, file: bool = True) -> Path:
@@ -29,7 +33,7 @@ def validate_mcp_paths(path_str: str, file: bool = True) -> Path:
         ValueError: If the path is not valid.
     """
 
-    path = Path(path_str)
+    path = WORKDIR / Path(path_str)
 
     if not path.exists():
         raise FileNotFoundError(f"File {path_str} not found!")
@@ -115,7 +119,7 @@ def edit_file(filepath: str, old_str: str, new_str: str) -> None:
     if count > 1:
         raise ValueError(
             f"Ambiguous : '{old_str}' appear"
-            " {count} times. Please add more context."
+            f" {count} times. Please add more context."
         )
 
     new_content = content.replace(old_str, new_str, 1)
@@ -159,7 +163,7 @@ def search_code(pattern: str, file_pattern: str) -> str:
     """
     black_list = {".git", ".venv", "__pycache__", ".mypy_cache"}
     matches = ""
-    for path in Path('.').rglob('*'):
+    for path in WORKDIR.rglob('*'):
         if any(part in black_list for part in path.parts):
             continue
 
@@ -210,7 +214,7 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
     """
     workdir = validate_mcp_paths(workdir_str, file=False)
     target = f"cd {workdir};"
-    result = subprocess.run(target + command, shell=True, capture_output=True)
+    result = subprocess.run(target + command, shell=True, capture_output=True, text=True)
     return (
         str(result.stdout) if result.stdout else "",
         str(result.stderr) if result.stderr else "",
@@ -218,8 +222,18 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
     )
 
 
+def get_patch() -> tuple[str, str, int]:
+    return run_command("git --no-pager diff", WORKDIR)
+
+
+if __name__ == "__mcp_tools_swebench__":
+    raw = get_env_var("TESTBED_PATH")
+    if raw is None:
+        raise OSError("TESTBED_PATH var not found!")
+    else:
+        WORDIR = validate_mcp_paths(raw, file=False)
+
 if __name__ == "__main__":
-    # MCP tools Tests
     print("run_command()")
     print(run_command("touch test.txt; echo 'writing in test.txt' > test.txt", "/tmp"))
     print(run_command("echo '\ntext files in /tmp:'; find . -name *.txt 2>/dev/null", "/tmp"))
@@ -238,3 +252,8 @@ if __name__ == "__main__":
 
     print("search_function_or_class_definition_in_code()")
     print(search_function_or_class_definition_in_code("Sandbox"))
+
+    print("get_patch()")
+    print(get_patch())
+
+    mcp.run(transport="stdio")

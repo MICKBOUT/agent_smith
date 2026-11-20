@@ -10,14 +10,14 @@ import openai
 import fastmcp
 from fastmcp.client.transports import StdioTransport
 
-from .api import ChatApi, getAPIkey
+from .api import ChatApiMbpp  # , ChatApiSwe
 from .config import (
     DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION,
-    SYSTEM_PROMPT, Provider, UserProvider
+    SYSTEM_PROMPT_MBPP, Provider, UserProvider
 )
 
-from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound, MBPPTaskInput
-from .utils import check_apikeys_available, load_mbpp_question, load_swe_question
+from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound, MBPPTaskInput, SWEBenchTaskInput
+from .utils import check_apikeys_available, load_mbpp_question, load_swe_question, getAPIkey
 
 
 class CLI:
@@ -26,12 +26,22 @@ class CLI:
         if not self.provider_lst:
             raise ValueError("No API keys are set as environment variables")
 
+    @staticmethod
+    def check_user_apikey(provider_url: str, model_name: str) -> Optional[Provider]:
+        provider = UserProvider(provider_url, model_name)
+        try:
+            getAPIkey(provider)
+            return provider
+        except ValueError:
+            print(f"No key found for: {provider.NAME}")
+        return None
+
     def _addUserModel(self, model_name: str, provider_url: str) -> None:
         if model_name or provider_url:
             if not (model_name and provider_url):
                 print("model_name and provider_url need to be set if you want to use a user set provider")
             else:
-                provider = check_apikey(provider_url, model_name)
+                provider = self.check_user_apikey(provider_url, model_name)
                 if provider:
                     self.provider_lst.append(provider)
 
@@ -63,32 +73,27 @@ class CLI:
     ) -> None:
         self._addUserModel(model_name, provider_url)
         question = load_swe_question(task_file)
+        question
 
 
-def check_apikey(provider_url: str, model_name: str) -> Optional[Provider]:
-    provider = UserProvider(provider_url, model_name)
-    try:
-        getAPIkey(provider)
-        return provider
-    except ValueError:
-        print(f"No key found for: {provider.NAME}")
-    return None
+async def generate_swe(provider_lst: list[Provider], question: SWEBenchTaskInput) -> SolutionOutput:
+    chat = ChatApiMbpp(question=question, llm_provider=provider_lst[-1])
+    async with client_swe:
+        chat
 
 
 async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -> SolutionOutput:
-    chat = ChatApi(question=question, llm_provider=provider_lst[-1])
-
+    chat = ChatApiMbpp(question=question, llm_provider=provider_lst[-1])
     print(
         f"Id: {question.task_id}\n"
         f"Question: {question.task_definition}"
     )
 
-    start_time = time.monotonic()
-    generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
-    error = None
-    steps = []
-
-    async with client:
+    async with client_mbpp:
+        start_time = time.monotonic()
+        generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
+        error = None
+        steps = []
         for iteration in range(1, DEFAULT_MAX_ITERATION + 1):
             remaining_time = generation_deadline - time.monotonic()
             if remaining_time < 0:
@@ -97,7 +102,7 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
 
             try:
                 llm_generation_output = chat.generateSandboxCode(timeout=remaining_time)
-                sandbox_result = await client.call_tool(
+                sandbox_result = await client_mbpp.call_tool(
                     "run_tests",
                     {
                         "code": llm_generation_output.code,
@@ -144,7 +149,7 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
         total_output_tokens=chat.total_output_tokens,
         total_time_seconds=time.monotonic() - start_time,
         steps=steps,
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=SYSTEM_PROMPT_MBPP,
         error=error,
     )
 
@@ -156,11 +161,18 @@ def main() -> None:
 if __name__ == "__main__":
     PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-    transport = StdioTransport(
+    transport_mbpp = StdioTransport(
         command=sys.executable,
         args=[str(PROJECT_ROOT / "mcp_tools_mbpp.py")],
         cwd=str(PROJECT_ROOT),
     )
-    client = fastmcp.Client(transport)
+    transport_swe = StdioTransport(
+        command=sys.executable,
+        args=[str(PROJECT_ROOT / "mcp_tools_swebench.py")],
+        cwd=str(PROJECT_ROOT),
+    )
+
+    client_mbpp = fastmcp.Client(transport_mbpp)
+    client_swe = fastmcp.Client(transport_swe)
 
     main()
