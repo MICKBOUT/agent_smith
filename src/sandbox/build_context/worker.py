@@ -22,11 +22,15 @@ def main() -> None:
 
     if len(sys.argv) > 1:
         authorized_imports = sys.argv[1].split()
-        namespace = get_new_namespace(authorized_imports)
+        if len(sys.argv) > 2 and sys.argv[2] == "--single":
+            final_answer_socket = sys.argv[3] if len(sys.argv) > 3 else None
+        else:
+            final_answer_socket = sys.argv[2] if len(sys.argv) > 2 else None
+        namespace = get_new_namespace(authorized_imports, final_answer_socket)
     else:
         return
 
-    if len(sys.argv) == 3 and sys.argv[2] == "--single":
+    if len(sys.argv) > 2 and sys.argv[2] == "--single":
         code = sys.stdin.read()
         exec(code, namespace, namespace)
         return

@@ -16,9 +16,9 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 
-from ..models import SandboxError, SandboxConfig
+from models import SandboxError, SandboxConfig
 
-from .docker_init import Container, CONTROL_SOCKET
+from .docker_init import Container, CONTROL_SOCKET, FINAL_ANSWER_SOCKET
 from .sandbox_loader import load_python_file, load_json_template
 
 
@@ -75,13 +75,21 @@ class Sandbox:
         listener.listen(1)
         listener.settimeout(0.2)  # its for recv and accept ops
 
+        final_answer_path = control_directory / Path(FINAL_ANSWER_SOCKET).name
+        final_answer_listener = None
+
         worker = None
         control = None
         container_name = f"agent-smith-repl-{uuid.uuid4().hex[:12]}"
 
         try:
+            final_answer_listener = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+            final_answer_listener.bind(str(final_answer_path))
+            final_answer_path.chmod(0o666)
+            final_answer_listener.setblocking(False)
+
             worker, container_name = self.container.run_interactive(
-                [" ".join(self.authorized_imports)],
+                [" ".join(self.authorized_imports), FINAL_ANSWER_SOCKET],
                 control_directory,
                 self.config.max_memory_mb,
                 self.config.allowed_directories,
@@ -131,6 +139,12 @@ class Sandbox:
                 code = "\n".join(lines) + "\n"
                 control.sendall((code + "\n").encode("utf-8"))
                 self._wait_return_code(control, worker, container_name)
+                try:
+                    answer = final_answer_listener.recv(200_000).decode("utf-8")
+                except (BlockingIOError, UnicodeDecodeError):
+                    answer = None
+                if answer is not None:
+                    print(f"final_answer: {answer}")
                 time.sleep(0.001)
 
         except EOFError:
@@ -140,6 +154,8 @@ class Sandbox:
         finally:
             if control is not None:
                 control.close()
+            if final_answer_listener is not None:
+                final_answer_listener.close()
             listener.close()
             if worker is not None:
                 self.container.stop_interactive(worker, container_name)

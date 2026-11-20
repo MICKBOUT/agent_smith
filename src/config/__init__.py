@@ -4,13 +4,14 @@ from .config import (
     DEFAULT_MAX_TOKEN, MAX_INPUT_TOKENS, DEFAULT_MAX_ITERATION,
     DEFAULT_TEMPERATURE
 )
-from .prompt import SYSTEM_PROMPT
+from .prompt import SYSTEM_PROMPT_MBPP, SYSTEM_PROMPT_SWE
 from .enum import Provider, LLMProvider, UserProvider
 
 __all__ = [
     "OPENROUTER_URL",
     "OPENROUTER_URL_KEY",
-    "SYSTEM_PROMPT",
+    "SYSTEM_PROMPT_MBPP",
+    "SYSTEM_PROMPT_SWE",
     "DEFAULT_PROVIDER",
     "DEFAULT_GENERATION_TIMEOUT",
     "MBPP_SANITIZED_PATH",

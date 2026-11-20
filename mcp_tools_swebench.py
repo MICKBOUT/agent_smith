@@ -13,6 +13,7 @@ mcp = FastMCP("SWE tools")
 
 
 # File System Tools
+WORKDIR = ""
 
 
 def validate_mcp_paths(path_str: str, file: bool = True) -> Path:
@@ -233,24 +234,26 @@ if __name__ == "__mcp_tools_swebench__":
         WORDIR = validate_mcp_paths(raw, file=False)
 
 if __name__ == "__main__":
-    # git clone git@github.com:MICKBOUT/a-maze-ing.git /tmp/
-    WORKDIR = Path("/tmp/a-maze-ing")
+    print("run_command()")
+    print(run_command("touch test.txt; echo 'writing in test.txt' > test.txt", "/tmp"))
+    print(run_command("echo '\ntext files in /tmp:'; find . -name *.txt 2>/dev/null", "/tmp"))
 
-    # === MCP tools Tests ===
-    print(search_code("class:", "*.py"))
-    print(search_function_or_class_definition_in_code("MLX"))
+    print("\nlist_files()")
+    print(list_files("/tmp", "*.txt"))
 
-    stdout, _, _ = run_command("ls -la", "tests")
-    print(stdout)
-    _, stderr, _ = run_command("ls --invalid-flag", ".")
-    print(stderr)
+    print("edit_file()")
+    edit_file("/tmp/test.txt", "writing", "editing")
 
+    print("read_file()")
+    print(read_file("/tmp/test.txt", 1, 999))
+
+    print("search_code()")
+    print(search_code("2>/dev", "*.py"))
+
+    print("search_function_or_class_definition_in_code()")
+    print(search_function_or_class_definition_in_code("Sandbox"))
+
+    print("get_patch()")
     print(get_patch())
 
-    print(list_files(".", "*.txt"), end="\n\n")
-    print(list_files("tests/", "*.py"), end="\n\n")
-    print(list_files(".", "*"), end="\n\n")
-
-    print(read_file("README.md", 1, 1))
-    print(edit_file("README.md", "pdauga.", "mister_pdauga."))
-    print(read_file("README.md", 1, 1))
+    mcp.run(transport="stdio")
