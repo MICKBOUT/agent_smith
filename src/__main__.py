@@ -91,6 +91,7 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
         start_time = time.monotonic()
         generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
         error, steps, tool_result = None, [], {}
+        llm_generation_output = None
         for iteration in range(1, DEFAULT_MAX_ITERATION + 1):
             remaining_time = generation_deadline - time.monotonic()
             if remaining_time < 0:
@@ -121,13 +122,15 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
                         sandbox_output=tool_result["output"],
                         retries=0
                     ))
-                    if tool_result["final_answer"]:
-                        break
-                    chat.addLogSucces(tool_result["output"])
+                    break
                 else:
                     error = tool_result["output"]
                     chat.addLogError(error)
-            except (openai.RateLimitError, openai.BadRequestError):
+            except (
+                openai.RateLimitError,
+                openai.BadRequestError,
+                openai.InternalServerError,
+            ):
                 provider_lst.pop()
                 if len(provider_lst) == 0:
                     error = "No provider available"
@@ -135,15 +138,16 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
                 chat.setProvider(provider_lst[-1])
             except (NoneMessageError, NoCodeBlockFound):
                 # to-do: find a way to get the message generated even if the program raise an error to add a step in case of failiure
+                error = "The model did not return a valid Python code block"
                 continue
 
     return SolutionOutput(
         task_id=str(question.task_id),
         benchmark="mbpp",
         success=tool_result["success"] if tool_result else False,
-        solution=llm_generation_output.code,
-        iterations=iteration,
-        total_requests=iteration,
+        solution=llm_generation_output.code if llm_generation_output is not None else "",
+        iterations=locals().get("iteration", 0),
+        total_requests=locals().get("iteration", 0),
         total_input_tokens=chat.total_input_tokens,
         total_output_tokens=chat.total_output_tokens,
         total_time_seconds=time.monotonic() - start_time,
@@ -151,22 +155,6 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
         system_prompt=SYSTEM_PROMPT_MBPP,
         error=error,
     )
-
-
-# async def test() -> None:
-#     async with client_mbpp:
-#         sandbox_result = await client_mbpp.call_tool(
-#             "run_tests",
-#             {
-#                 "code": "assert 1",
-#                 "test_list": [],
-#                 "test_imports": [],
-#             },
-#         )
-#         if sandbox_result.data["final_answer"]:
-#             SolutionOutput()
-#         else:
-#             continue
 
 
 def main() -> None:
