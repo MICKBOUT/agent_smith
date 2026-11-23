@@ -191,12 +191,12 @@ def search_function_or_class_definition_in_code(name: str) -> str:
 
 
 @mcp.tool
-def find_references(name: str, filepath: str, line):
+def find_references(name: str, filepath: str, line: int) -> str:
     """
     Find all usages of a symbol (function or class).
     The output format must be similar to search_code format.
     """
-    ...
+    return search_code(f"{name}", "*.py")
 
 
 @mcp.tool
