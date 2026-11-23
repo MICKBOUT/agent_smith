@@ -60,6 +60,20 @@ class OpenAIProvider(Provider):
     NAME = "OpenAi"
 
 
+class LmStudioProvider(Provider):
+    API_KEY_NAME = "LM_STUDIO_API_KEY"
+    URL = "http://127.0.0.1:1234/v1"
+    MODEL_NAME = "prism-ml/bonsai-27b"
+    NAME = "LmStudio"
+
+
+class OllamaProvider(Provider):
+    API_KEY_NAME = "ollama"
+    URL = "http://127.0.0.1:11434/v1"
+    MODEL_NAME = "qwen3.8:27b"
+    NAME = "Ollama"
+
+
 class LLMProvider(Enum):
     GEMIN = GeminiProvider()
     OPENROUTER = OpenRouterProvider()
@@ -67,3 +81,5 @@ class LLMProvider(Enum):
     GROQ = GroqProvider()
     COHER = CoherProvider()
     OPENAI = OpenAIProvider()
+    LMSTUDIO = LmStudioProvider()
+    OLLAMA = OllamaProvider()

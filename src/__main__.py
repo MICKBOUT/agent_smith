@@ -75,25 +75,23 @@ class CLI:
         question = load_swe_question(task_file)
         question
 
+    # def test_final_answer(self) -> None:
+    #     asyncio.run(test())
+
 
 async def generate_swe(provider_lst: list[Provider], question: SWEBenchTaskInput) -> SolutionOutput:
-    chat = ChatApiMbpp(question=question, llm_provider=provider_lst[-1])
-    async with client_swe:
-        chat
+    return
+    ...
 
 
 async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -> SolutionOutput:
     chat = ChatApiMbpp(question=question, llm_provider=provider_lst[-1])
-    print(
-        f"Id: {question.task_id}\n"
-        f"Question: {question.task_definition}"
-    )
 
     async with client_mbpp:
         start_time = time.monotonic()
         generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
-        error = None
-        steps = []
+        error, steps, tool_result = None, [], {}
+        llm_generation_output = None
         for iteration in range(1, DEFAULT_MAX_ITERATION + 1):
             remaining_time = generation_deadline - time.monotonic()
             if remaining_time < 0:
@@ -110,8 +108,8 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
                         "test_imports": question.test_imports,
                     },
                 )
-                test_result = json.loads(sandbox_result.data)
-                if test_result["success"]:
+                tool_result = json.loads(sandbox_result.data)
+                if tool_result["success"]:
                     steps.append(StepMetrics(
                         step=iteration,
                         input_tokens=llm_generation_output.input_tokens,
@@ -121,30 +119,35 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
                         model_name=chat.llm_provider.MODEL_NAME,
                         llm_output=llm_generation_output.response,
                         sandbox_input=llm_generation_output.sandbox_input,
-                        sandbox_output=test_result["output"],
+                        sandbox_output=tool_result["output"],
                         retries=0
                     ))
-                    print("\033[32mDone\033[0m")
                     break
-
-                error = test_result["output"]
-                chat.addLog(error)
-            except (openai.RateLimitError, openai.BadRequestError):
+                else:
+                    error = tool_result["output"]
+                    chat.addLogError(error)
+            except (
+                openai.RateLimitError,
+                openai.BadRequestError,
+                openai.InternalServerError,
+            ):
                 provider_lst.pop()
                 if len(provider_lst) == 0:
                     error = "No provider available"
                     break
                 chat.setProvider(provider_lst[-1])
             except (NoneMessageError, NoCodeBlockFound):
+                # to-do: find a way to get the message generated even if the program raise an error to add a step in case of failiure
+                error = "The model did not return a valid Python code block"
                 continue
 
     return SolutionOutput(
         task_id=str(question.task_id),
         benchmark="mbpp",
-        success=test_result["success"] if test_result else False,
-        solution=llm_generation_output.code,
-        iterations=iteration,
-        total_requests=iteration,
+        success=tool_result["success"] if tool_result else False,
+        solution=llm_generation_output.code if llm_generation_output is not None else "",
+        iterations=locals().get("iteration", 0),
+        total_requests=locals().get("iteration", 0),
         total_input_tokens=chat.total_input_tokens,
         total_output_tokens=chat.total_output_tokens,
         total_time_seconds=time.monotonic() - start_time,

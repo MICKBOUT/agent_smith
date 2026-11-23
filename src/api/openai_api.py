@@ -8,7 +8,9 @@ from ..config import (
     DEFAULT_TEMPERATURE,
     DEFAULT_REQUEST_TIMEOUT,
     DEFAULT_MAX_TOKEN,
-    MAX_INPUT_TOKENS
+    MAX_INPUT_TOKENS,
+    SYSTEM_SUCCES_MESSAGE,
+    SYSTEM_ERROR_MESSAGE,
 )
 from ..models import NoCodeBlockFound, NoneMessageError, LLmGenerationOutput
 from ..utils import getAPIkey, createProgram
@@ -31,6 +33,7 @@ class ChatApi(ABC):
     def _setQuestion(self) -> None:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
+        self.messages = []
 
     def setProvider(self, llm_provider: Provider) -> None:
         self.llm_provider = llm_provider
@@ -131,6 +134,7 @@ class ChatApi(ABC):
             raise
         except NoCodeBlockFound as e:
             print(BLUE_LOG_STR, "No CodeBlock Found\n", flush=True)
+            print(message, flush=True)
             self.messages.append({"role": "assistant", "content": message})
             self.messages.append({
                 "role": "user",
@@ -139,6 +143,10 @@ class ChatApi(ABC):
             raise
         return ""
 
-    def addLog(self, message: str) -> None:
+    def addLogError(self, message: str) -> None:
         self.messages.append({"role": "system", "content": message})
-        self.messages.append({"role": "user", "content": "the test fail in the sandbox, send a new code that is complient to the test and pass the assert."})
+        self.messages.append({"role": "user", "content": SYSTEM_ERROR_MESSAGE})
+
+    def addLogSucces(self, message: str) -> None:
+        self.messages.append({"role": "system", "content": message})
+        self.messages.append({"role": "user", "content": SYSTEM_SUCCES_MESSAGE})
