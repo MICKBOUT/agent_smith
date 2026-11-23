@@ -11,6 +11,7 @@ mcp = FastMCP("MBPP tools")
 sandbox: Sandbox | None = None
 
 
+# To-do: Warning, the subject ask for 2 agrs but test_imports is added, else the mbpp can run test that arn't imported
 @mcp.tool
 def run_tests(code: str, test_list: list[str], test_imports: list[str]) -> str:
     """Run a candidate solution against MBPP assertion tests."""
@@ -28,16 +29,18 @@ def run_tests(code: str, test_list: list[str], test_imports: list[str]) -> str:
             raise SandboxError(result.stderr)
 
     except SandboxError:
-        if result:
-            return json.dumps({"success": False, "output": result.stderr})
-        return json.dumps({"success": False, "output": "SandBoxtime out"})
+        return json.dumps({
+            "success": False,
+            "output": result.stderr if result else "SandBoxtime out",
+            "final_answer": None
+        })
 
-    return json.dumps({"success": result.returncode == 0, "output": result.stderr})
+    return json.dumps({
+        "success": result.returncode == 0,
+        "output": result.stdout or result.stderr,
+        "final_answer": getattr(result, "final_answer", None),
+    })
 
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
-
-    # print(read_file("Makefile", 1, 5))
-    # print(list_files(".", "*.py"))
-    # run_command("ls -a", "/tmp")

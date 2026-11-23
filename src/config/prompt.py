@@ -187,3 +187,6 @@ final_answer(patch)
 
 Do not submit only a summary or an explanation. The final answer must be the retrieved git diff.
 """
+
+SYSTEM_SUCCES_MESSAGE = "The test has pass, if you think your code is ready, use final_answer() on your code to submit your result."
+SYSTEM_ERROR_MESSAGE = "the test fail in the sandbox, send a new code that is complient to the test and pass the assert."
