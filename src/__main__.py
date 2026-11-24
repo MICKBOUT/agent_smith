@@ -75,9 +75,6 @@ class CLI:
         question = load_swe_question(task_file)
         question
 
-    # def test_final_answer(self) -> None:
-    #     asyncio.run(test())
-
 
 async def generate_swe(provider_lst: list[Provider], question: SWEBenchTaskInput) -> SolutionOutput:
     return
@@ -92,6 +89,7 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
         generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
         error, steps, tool_result = None, [], {}
         llm_generation_output = None
+        solution_code = ""
         for iteration in range(1, DEFAULT_MAX_ITERATION + 1):
             remaining_time = generation_deadline - time.monotonic()
             if remaining_time < 0:
@@ -109,6 +107,12 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
                     },
                 )
                 tool_result = json.loads(sandbox_result.data)
+                final_answer = tool_result.get("final_answer")
+                if isinstance(final_answer, str) and final_answer:
+                    solution_code = final_answer
+                else:
+                    solution_code = llm_generation_output.code
+
                 if tool_result["success"]:
                     steps.append(StepMetrics(
                         step=iteration,
@@ -136,16 +140,22 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
                     error = "No provider available"
                     break
                 chat.setProvider(provider_lst[-1])
-            except (NoneMessageError, NoCodeBlockFound):
-                # to-do: find a way to get the message generated even if the program raise an error to add a step in case of failiure
+            except NoneMessageError as e:
+                error = str(e)
+                chat.messages.append({
+                    "role": "user",
+                    "content": "Your previous response was empty. Return exactly one Python code block containing the solution.",
+                })
+                continue
+            except NoCodeBlockFound:
                 error = "The model did not return a valid Python code block"
                 continue
 
     return SolutionOutput(
         task_id=str(question.task_id),
         benchmark="mbpp",
-        success=tool_result["success"] if tool_result else False,
-        solution=llm_generation_output.code if llm_generation_output is not None else "",
+        success=tool_result.get("success", False),
+        solution=solution_code,
         iterations=locals().get("iteration", 0),
         total_requests=locals().get("iteration", 0),
         total_input_tokens=chat.total_input_tokens,
