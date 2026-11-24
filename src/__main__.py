@@ -75,9 +75,6 @@ class CLI:
         question = load_swe_question(task_file)
         question
 
-    # def test_final_answer(self) -> None:
-    #     asyncio.run(test())
-
 
 async def generate_swe(provider_lst: list[Provider], question: SWEBenchTaskInput) -> SolutionOutput:
     return
