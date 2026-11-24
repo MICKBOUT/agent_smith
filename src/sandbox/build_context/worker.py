@@ -14,10 +14,6 @@ SOCKET_PATH = "/run/sandbox-control/sandbox.sock"
 def main() -> None:
     """
     Main execution line for the REPL worker.
-
-    Args (from sys.argv):
-        1: authorized_imports: "math functools".
-        2: flag: "--single" for execute one bloc.
     """
 
     if len(sys.argv) > 1:
