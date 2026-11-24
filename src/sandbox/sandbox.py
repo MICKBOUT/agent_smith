@@ -181,6 +181,7 @@ class Sandbox:
 
         Raises:
             SandboxError: if a timeout occurs
+            RuntimeError: if the socket is closed.
         """
         runtime = time.monotonic()
         while True:

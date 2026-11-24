@@ -32,7 +32,7 @@ class Container:
         )
 
     def run(self, args: list[str], timeout: int,
-            max_memory: int, allowed_directories: list[str], code: str) -> subprocess.CompletedProcess:
+            max_memory: int, code: str) -> subprocess.CompletedProcess:
         """
         execute a single bloc of python code in an isolated
         environnment.
@@ -41,7 +41,6 @@ class Container:
             args: list of arguments for the child process.
             timeout: the timout limit for the process.
             max_memory: limit of memory which can be allocate.
-            allowed_directories: list of allowed directories.
             code: the code to be executed.
 
         Returns:
@@ -106,6 +105,7 @@ class Container:
 
         Raises
             ValueError: if the memory_mb value zero or negative.
+            SandboxError: allowed directories errors.
         """
 
         if memory_mb <= 0:

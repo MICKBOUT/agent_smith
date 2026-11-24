@@ -1,6 +1,4 @@
-# Typing
 import json
-import os
 import socket
 from typing import Any, Callable
 
@@ -28,7 +26,7 @@ def create_safe_import(authorized_imports: list[str]) -> Callable:
         authorized_imports: list of allowed python modules.
 
     Returns:
-        callable: the safe import function
+        Callable: the safe import function
     """
     def safe_import(
         name,
@@ -80,12 +78,18 @@ def get_new_namespace(
     final_answer_socket: str | None = None,
 ) -> NameSpace:
     """
-    function to get a new namespace.
+    Build a restricted namespace.
+
     Args:
         authorized_imports: list of allowed python modules.
+        final_answer_socket: AF UNIX socket for final answer submit.
 
     Returns:
         NameSpace: The new namespace.
+
+    Raises:
+        SandboxError: if a sandbox error occurs.
+        TypeError: if args validation fails.
     """
     builtins = SafeBuiltins.all.copy()
 
@@ -105,7 +109,7 @@ def get_new_namespace(
         raise SystemExit(0)
 
     builtins["final_answer"] = submit_final_answer
-    without_import = {"__builtins__": builtins}
+    without_import: NameSpace = {"__builtins__": builtins}
 
     without_import["__builtins__"].update(
         {"__import__": create_safe_import(authorized_imports)}
@@ -120,14 +124,6 @@ class SafeBuiltins:
     it contain all allowed builtins used in the sandbox.
     """
     all = {
-
-        # tests - must not be included in final push.
-        "ls": lambda x: os.listdir(x),
-        "open": open,
-
-        # STDOUT
-        "print": print,
-
         # basic types
         "bool": bool,
         "int": int,

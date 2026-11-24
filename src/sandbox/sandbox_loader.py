@@ -5,7 +5,7 @@ from pathlib import Path
 from models import SandboxConfig
 
 
-def load_json_template(file_path: str | Path) -> SandboxConfig | None:
+def load_json_template(file_path: str | Path) -> SandboxConfig:
     """
     load json template file.
 
@@ -14,7 +14,6 @@ def load_json_template(file_path: str | Path) -> SandboxConfig | None:
 
     Returns:
         SandboxConfig: the loaded model.
-        None: if any errors occurs.
     """
     file = Path(file_path)
 

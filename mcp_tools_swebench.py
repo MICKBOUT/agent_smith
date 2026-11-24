@@ -11,8 +11,6 @@ from utils import get_env_var
 
 mcp = FastMCP("SWE tools")
 
-
-# File System Tools
 WORKDIR = ""
 
 
@@ -108,8 +106,6 @@ def edit_file(filepath: str, old_str: str, new_str: str) -> None:
         OSError: sys calls errors
     """
     path_file = validate_mcp_paths(filepath)
-
-    # todo validation
     content = path_file.read_text(encoding="utf-8")
 
     count = content.count(old_str)
@@ -145,8 +141,6 @@ def list_files(directory_str: str, pattern: str) -> str | None:
     resolved = [str(Path(file).resolve()) for file in files]
 
     return "\n".join(file for file in resolved)
-
-# Code Search Tools
 
 
 @mcp.tool
@@ -223,6 +217,12 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
 
 
 def get_patch() -> tuple[str, str, int]:
+    """
+    This funcion run 'git --no-pager diff' and return the result.
+
+    Returns:
+        tuple[str, str, int] : Stdout, Stderr and exit code.
+    """
     return run_command("git --no-pager diff", WORKDIR)
 
 
