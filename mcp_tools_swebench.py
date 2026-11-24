@@ -221,6 +221,7 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
         result.returncode
     )
 
+
 @mcp.tool
 def get_patch() -> tuple[str, str, int]:
     return run_command("git --no-pager diff", WORKDIR)
