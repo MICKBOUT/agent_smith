@@ -18,6 +18,7 @@ from .config import (
 
 from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound, MBPPTaskInput, SWEBenchTaskInput
 from .utils import check_apikeys_available, load_mbpp_question, load_swe_question, getAPIkey
+from .sandbox.swebench_repo import load_swebench_repository
 
 
 class CLI:
@@ -73,12 +74,30 @@ class CLI:
     ) -> None:
         self._addUserModel(model_name, provider_url)
         question = load_swe_question(task_file)
-        question
+        with load_swebench_repository(question.docker_image):
+            solution = asyncio.run(generate_swe(self.provider_lst, question))
+        try:
+            solution_data = solution.model_dump()
+            with open(output or "output.json", "w", encoding="utf-8") as output_file:
+                json.dump(solution_data, output_file, indent=2)
+        except (OSError, TypeError, ValueError) as e:
+            print(f"Error writing solution to '{output or 'output.json'}': {e}")
 
 
 async def generate_swe(provider_lst: list[Provider], question: SWEBenchTaskInput) -> SolutionOutput:
-    return
-    ...
+    return SolutionOutput(
+        task_id=question.instance_id,
+        benchmark="swebench",
+        success=False,
+        solution="",
+        iterations=0,
+        total_requests=0,
+        total_input_tokens=0,
+        total_output_tokens=0,
+        total_time_seconds=0.0,
+        steps=[],
+        error="SWE-bench agent loop is not implemented yet",
+    )
 
 
 async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -> SolutionOutput:
