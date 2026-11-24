@@ -11,7 +11,7 @@ from utils import get_env_var
 
 mcp = FastMCP("SWE tools")
 
-WORKDIR = ""
+WORKDIR = Path()
 
 
 def validate_mcp_paths(path_str: str, file: bool = True) -> Path:
