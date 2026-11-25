@@ -141,8 +141,8 @@ def list_files(directory_str: str, pattern: str) -> str | None:
     """
     directory = validate_mcp_paths(directory_str, file=False)
 
-    files = glob.glob(pattern, root_dir=directory)
-    resolved = [str(Path(file).resolve()) for file in files]
+    files = glob.glob(pattern, root_dir=directory, recursive=True)
+    resolved = [str((directory / file).resolve()) for file in files]
 
     return "\n".join(file for file in resolved)
 

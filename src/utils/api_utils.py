@@ -13,7 +13,7 @@ def check_apikeys_available() -> list[Provider]:
             getAPIkey(provider)
             provider_lst.append(provider)
         except ValueError:
-            print(f"No key found for: {provider.NAME}")
+            pass
     return provider_lst
 
 

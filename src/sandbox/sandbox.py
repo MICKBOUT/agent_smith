@@ -49,7 +49,9 @@ class Sandbox:
         Args:
             config: The sandbox config.
         """
-        print(self.LOGO)
+        # stdout is the MCP stdio transport when this sandbox is used by a
+        # tool server. Keep diagnostics off the JSON-RPC stream.
+        print(self.LOGO, file=sys.stderr)
         self.config = config
         self.timeout = config.max_execution_time_seconds
         self.authorized_imports = config.authorized_imports
