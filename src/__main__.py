@@ -49,7 +49,7 @@ class CLI:
 
     def agent_mbpp(
         self,
-        task_file: str = "datasets/mbpp/task.json",
+        task_file: str = "cache/mbpp_task.json",
         output: str = "output.json",
         model_name: str = "",
         provider_url: str = "",
@@ -109,7 +109,8 @@ async def generate_swe(
                         "pattern": "*",
                     },
                 )
-        print(sandbox_result.content)
+        tool_result = json.loads(sandbox_result.data)
+        print(tool_result)
 
     return SolutionOutput(
         task_id=question.instance_id,
@@ -135,6 +136,7 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
         error, steps, tool_result = None, [], {}
         llm_generation_output = None
         solution_code = ""
+        final_answer_submitted = False
         for iteration in range(1, DEFAULT_MAX_ITERATION + 1):
             remaining_time = generation_deadline - time.monotonic()
             if remaining_time < 0:
@@ -143,6 +145,12 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
 
             try:
                 llm_generation_output = chat.generateSandboxCode(timeout=remaining_time)
+                # Keep the conversation complete: the next request needs to
+                # know which code produced the sandbox observation.
+                chat.messages.append({
+                    "role": "assistant",
+                    "content": llm_generation_output.response,
+                })
                 sandbox_result = await client_mbpp.call_tool(
                     "run_tests",
                     {
@@ -155,51 +163,58 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
                 final_answer = tool_result.get("final_answer")
                 if isinstance(final_answer, str) and final_answer:
                     solution_code = final_answer
-                else:
-                    solution_code = llm_generation_output.code
+                    final_answer_submitted = True
+                    break
 
                 if tool_result["success"]:
-                    steps.append(StepMetrics(
-                        step=iteration,
-                        input_tokens=llm_generation_output.input_tokens,
-                        output_tokens=llm_generation_output.output_tokens,
-                        request_time_ms=remaining_time + time.monotonic() - generation_deadline,
-                        api_url=chat.llm_provider.URL,
-                        model_name=chat.llm_provider.MODEL_NAME,
-                        llm_output=llm_generation_output.response,
-                        sandbox_input=llm_generation_output.sandbox_input,
-                        sandbox_output=tool_result["output"],
-                        retries=0
-                    ))
-                    break
+                    chat.addLogSucces(tool_result["output"])
                 else:
                     error = tool_result["output"]
-                    chat.addLogError(error)
+                    chat.addLogSandboxError(error)
+                steps.append(StepMetrics(
+                    step=iteration,
+                    input_tokens=llm_generation_output.input_tokens,
+                    output_tokens=llm_generation_output.output_tokens,
+                    request_time_ms=remaining_time + time.monotonic() - generation_deadline,
+                    api_url=chat.llm_provider.URL,
+                    model_name=chat.llm_provider.MODEL_NAME,
+                    llm_output=llm_generation_output.response,
+                    sandbox_input=llm_generation_output.sandbox_input,
+                    sandbox_output=tool_result["output"],
+                    retries=0
+                ))
+
             except (
                 openai.RateLimitError,
                 openai.BadRequestError,
                 openai.InternalServerError,
-            ):
+                openai.NotFoundError,
+                openai.APITimeoutError,
+            ) as e:
+                if isinstance(e, openai.NotFoundError):
+                    print("[LOG]: Model Not found, please  change it in the config folder")
                 provider_lst.pop()
                 if len(provider_lst) == 0:
                     error = "No provider available"
                     break
                 chat.setProvider(provider_lst[-1])
-            except NoneMessageError as e:
+            except (NoneMessageError, NoCodeBlockFound) as e:
                 error = str(e)
-                chat.messages.append({
-                    "role": "user",
-                    "content": "Your previous response was empty. Return exactly one Python code block containing the solution.",
-                })
-                continue
-            except NoCodeBlockFound:
-                error = "The model did not return a valid Python code block"
-                continue
+                chat.addLogDefaultError(error)
+                steps.append(StepMetrics(
+                    step=iteration,
+                    input_tokens=llm_generation_output.input_tokens,
+                    output_tokens=llm_generation_output.output_tokens,
+                    request_time_ms=remaining_time + time.monotonic() - generation_deadline,
+                    api_url=chat.llm_provider.URL,
+                    model_name=chat.llm_provider.MODEL_NAME,
+                    llm_output=llm_generation_output.response,
+                ))
 
     return SolutionOutput(
         task_id=str(question.task_id),
         benchmark="mbpp",
-        success=tool_result.get("success", False),
+        success=final_answer_submitted,
         solution=solution_code,
         iterations=locals().get("iteration", 0),
         total_requests=locals().get("iteration", 0),
