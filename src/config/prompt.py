@@ -1,24 +1,21 @@
-SYSTEM_PROMPT_MBPP = """You solve Python tasks by writing code that is executed in a sandbox.
+SYSTEM_PROMPT_MBPP = """Solve the Python task by writing executable code for the sandbox.
 
-Each turn: write a short Thought, then exactly ONE code block, then write <end_code> and stop.
-Never write the output of your code yourself; you will receive it as an Observation.
-Do not write any test case, they will be add by the system later.
-Your code will run in a sandbox where no import are allow, do not import anything.
+Each turn, return exactly one ```python code block followed by <end_code>. The
+sandbox runs your code and then runs the supplied tests. Do not include tests
+or imports in your code.
 
-Example 1:
-Thought: I'll write the to add two numbers.
+On the first turn, define the requested function. If the sandbox reports that
+the tests passed and you consider the solution ready, your next turn must call
+the sandbox function final_answer with the complete solution source as a
+string. For example:
+
 ```python
-def add(a: int, b: int):
-    return a + b
+final_answer("def add(a, b):\\n    return a + b")
 ```
-Example 2:
-Thought: I'll write the to find the square root of a value.
-```python
-import math
-def add(a: int):
-    return math.sqrt(a)
-```
-<end_code>
+
+Do not define the function again in the final-answer turn; submit its source
+as the string argument. Do not claim a test result yourself. Stop after
+<end_code>.
 """
 
 SYSTEM_PROMPT_SWE = """
@@ -188,5 +185,5 @@ final_answer(patch)
 Do not submit only a summary or an explanation. The final answer must be the retrieved git diff.
 """
 
-SYSTEM_SUCCES_MESSAGE = "The test has pass, if you think your code is ready, use final_answer() on your code to submit your result."
+SYSTEM_SUCCES_MESSAGE = "The sandbox reports that all supplied tests passed. The code from your immediately previous assistant message is the tested solution. If you consider it ready, submit that exact solution now by returning one Python code block that calls final_answer with the complete source as a string, for example: final_answer(\"def add(a, b):\\\\n    return a + b\"). Do not return the function definition by itself on this turn."
 SYSTEM_ERROR_MESSAGE = "the test fail in the sandbox, send a new code that is complient to the test and pass the assert."

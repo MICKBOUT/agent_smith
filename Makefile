@@ -1,23 +1,26 @@
 VENV			= .venv
 DEV_DIR			= .dev
-EXCLUDE_LINT	= --exclude $(VENV),$(DEV_DIR)
+MOULINETTE_DIR	= moulinette
+FLAKE8_EXCLUDE	= --exclude $(VENV),$(DEV_DIR),$(MOULINETTE_DIR)
+MYPY_EXCLUDE	= --exclude '(^|/)(\.venv|\.dev|moulinette)(/|$$)'
 
 SRC		= src
 MAIN	= $(SRC)/__main__.py
+CACHE	= (cache)
 
 install:
 	uv sync
 
 get-task-mbpp:
-	cd .dev/moulinette && uv run moulinette_eval dump mbpp --output ../../datasets/mbpp/task.json
+	cd moulinette && env -u VIRTUAL_ENV uv run moulinette_eval dump mbpp --output ../cache/mbpp_task.json
 
 get-task-swebench:
-	cd .dev/moulinette && uv run moulinette_eval dump swebench --output ../../datasets/swebench/task.json
+	cd .dev/moulinette && env -u VIRTUAL_ENV uv run moulinette_eval dump swebench --output ../../datasets/swebench/task.json
 
-run-mbpp: install
+run-mbpp:
 	uv run python -m $(SRC) agent_mbpp
 
-run-swebench: install
+run-swebench:
 	uv run python -m $(SRC) agent_swebench \
 		--output output.json \
 		--task_file datasets/swebench/task.json
@@ -25,17 +28,17 @@ run-swebench: install
 run-model_lst:
 	uv run python -m src.api.openai_api
 
-lint: install
-	uv run flake8 . $(EXCLUDE_LINT)
-	uv run mypy . $(EXCLUDE_LINT)
+lint:
+	uv run flake8 . $(FLAKE8_EXCLUDE)
+	uv run mypy . $(MYPY_EXCLUDE)
 
 lint-strict: install
-	uv run flake8 . $(EXCLUDE_LINT)
-	uv run mypy . --strict $(EXCLUDE_LINT)	
+	uv run flake8 . $(FLAKE8_EXCLUDE)
+	uv run mypy . --strict $(MYPY_EXCLUDE)
 
 clean:
 	uv clean
-	rm -rf $(VENV)
+	rm -rf $(VENV) $(CACHE)
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 

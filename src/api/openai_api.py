@@ -1,4 +1,4 @@
-from typing import cast
+from typing import cast, Optional
 from abc import ABC, abstractmethod
 
 import tiktoken
@@ -126,27 +126,27 @@ class ChatApi(ABC):
                 sandbox_input=createProgram(code, self.question.test_list, self.question.test_imports),
             )
 
-        except (openai.RateLimitError, openai.BadRequestError, openai.InternalServerError) as e:
-            print(BLUE_LOG_STR, type(e).__name__, flush=True)
+        except (openai.RateLimitError, openai.BadRequestError, openai.InternalServerError, openai.APITimeoutError) as e:
+            print(BLUE_LOG_STR, self.llm_provider.NAME, type(e).__name__, flush=True)
             raise
         except NoneMessageError:
-            print(BLUE_LOG_STR, "None Message RETRY", flush=True)
+            print(BLUE_LOG_STR, self.llm_provider.NAME, "None Message RETRY", flush=True)
             raise
         except NoCodeBlockFound as e:
-            print(BLUE_LOG_STR, "No CodeBlock Found\n", flush=True)
+            print(BLUE_LOG_STR, self.llm_provider.NAME, "No CodeBlock Found\n", flush=True)
             print(message, flush=True)
-            self.messages.append({"role": "assistant", "content": message})
-            self.messages.append({
-                "role": "user",
-                "content": f"Your answer was invalid ({e}). Reply again with the code in a ```python block.",
-            })
             raise
         return ""
 
-    def addLogError(self, message: str) -> None:
+    def addLogSandboxError(self, message: str) -> None:
         self.messages.append({"role": "system", "content": message})
         self.messages.append({"role": "user", "content": SYSTEM_ERROR_MESSAGE})
 
-    def addLogSucces(self, message: str) -> None:
+    def addLogDefaultError(self, message: str) -> None:
         self.messages.append({"role": "system", "content": message})
-        self.messages.append({"role": "user", "content": SYSTEM_SUCCES_MESSAGE})
+
+    def addLogSucces(self, message: Optional[str] = None) -> None:
+        self.messages.append({
+            "role": "user",
+            "content": f"Sandbox observation: {message}\n{SYSTEM_SUCCES_MESSAGE}",
+        })

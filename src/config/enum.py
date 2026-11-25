@@ -28,7 +28,7 @@ class GeminiProvider(Provider):
 class OpenRouterProvider(Provider):
     API_KEY_NAME = "OPENROUTER_API_KEY"
     URL = "https://openrouter.ai/api/v1"
-    MODEL_NAME = "dots-studio/dots-3-note-preview:free"
+    MODEL_NAME = "google/gemma-4-31b-it"
     NAME = "OpenRouter"
 
 
