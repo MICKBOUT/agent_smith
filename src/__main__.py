@@ -87,10 +87,6 @@ class CLI:
             print(f"Error writing solution to '{output or 'output.json'}': {e}")
 
 
-<<<<<<< HEAD
-async def generate_swe(provider_lst: list[Provider], question: SWEBenchTaskInput) -> SolutionOutput:
-    ...
-=======
 async def generate_swe(
     provider_lst: list[Provider],
     question: SWEBenchTaskInput,
@@ -128,7 +124,6 @@ async def generate_swe(
         steps=[],
         error="SWE-bench agent loop is not implemented yet",
     )
->>>>>>> mboutte-swe_puling
 
 
 async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -> SolutionOutput:

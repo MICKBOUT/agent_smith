@@ -10,16 +10,12 @@ import os
 
 mcp = FastMCP("SWE tools")
 
-<<<<<<< HEAD
-WORKDIR = Path()
-=======
 raw_workdir = os.environ.get("TESTBED_PATH")
 if raw_workdir is None:
     raise OSError("TESTBED_PATH var not found!")
 WORKDIR = Path(raw_workdir).resolve()
 if not WORKDIR.is_dir():
     raise NotADirectoryError(f"TESTBED_PATH is not a directory: {WORKDIR}")
->>>>>>> mboutte-swe_puling
 
 
 def validate_mcp_paths(path_str: str, file: bool = True) -> Path:
