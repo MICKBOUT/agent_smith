@@ -6,12 +6,20 @@ import fnmatch
 import re
 import subprocess
 import glob
-
-from utils import get_env_var
+import os
 
 mcp = FastMCP("SWE tools")
 
+<<<<<<< HEAD
 WORKDIR = Path()
+=======
+raw_workdir = os.environ.get("TESTBED_PATH")
+if raw_workdir is None:
+    raise OSError("TESTBED_PATH var not found!")
+WORKDIR = Path(raw_workdir).resolve()
+if not WORKDIR.is_dir():
+    raise NotADirectoryError(f"TESTBED_PATH is not a directory: {WORKDIR}")
+>>>>>>> mboutte-swe_puling
 
 
 def validate_mcp_paths(path_str: str, file: bool = True) -> Path:
@@ -137,8 +145,8 @@ def list_files(directory_str: str, pattern: str) -> str | None:
     """
     directory = validate_mcp_paths(directory_str, file=False)
 
-    files = glob.glob(pattern, root_dir=directory)
-    resolved = [str(Path(file).resolve()) for file in files]
+    files = glob.glob(pattern, root_dir=directory, recursive=True)
+    resolved = [str((directory / file).resolve()) for file in files]
 
     return "\n".join(file for file in resolved)
 
@@ -227,34 +235,5 @@ def get_patch() -> tuple[str, str, int]:
     return run_command("git --no-pager diff", str(WORKDIR))
 
 
-if __name__ == "__mcp_tools_swebench__":
-    raw = get_env_var("TESTBED_PATH")
-    if raw is None:
-        raise OSError("TESTBED_PATH var not found!")
-    else:
-        WORKDIR = validate_mcp_paths(raw, file=False)
-
 if __name__ == "__main__":
-    print("run_command()")
-    print(run_command("touch test.txt; echo 'writing in test.txt' > test.txt", "/tmp"))
-    print(run_command("echo '\ntext files in /tmp:'; find . -name *.txt 2>/dev/null", "/tmp"))
-
-    print("\nlist_files()")
-    print(list_files("/tmp", "*.txt"))
-
-    print("edit_file()")
-    edit_file("/tmp/test.txt", "writing", "editing")
-
-    print("read_file()")
-    print(read_file("/tmp/test.txt", 1, 999))
-
-    print("search_code()")
-    print(search_code("2>/dev", "*.py"))
-
-    print("search_function_or_class_definition_in_code()")
-    print(search_function_or_class_definition_in_code("Sandbox"))
-
-    print("get_patch()")
-    print(get_patch())
-
     mcp.run(transport="stdio")

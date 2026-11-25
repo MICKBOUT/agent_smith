@@ -18,7 +18,9 @@ run-mbpp: install
 	uv run python -m $(SRC) agent_mbpp
 
 run-swebench: install
-	uv run python -m $(SRC) agent_swebench
+	uv run python -m $(SRC) agent_swebench \
+		--output output.json \
+		--task_file datasets/swebench/task.json
 
 run-model_lst:
 	uv run python -m src.api.openai_api

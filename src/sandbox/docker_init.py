@@ -2,6 +2,7 @@ import json
 import socket
 import subprocess
 import tempfile
+import sys
 
 from pathlib import Path
 from uuid import uuid4
@@ -29,6 +30,7 @@ class Container:
         subprocess.run(
             ["docker", "build", "--quiet", "--tag", IMAGE_NAME, str(build_dir)],
             check=True,
+            stdout=subprocess.DEVNULL,
         )
 
     def run(self, args: list[str], timeout: int,
@@ -47,7 +49,8 @@ class Container:
             CompletedProcess: the result of the process.
         """
 
-        print(self.MSG)
+        # stdout is reserved for MCP JSON-RPC when called by the MCP server.
+        print(self.MSG, file=sys.stderr)
 
         with tempfile.TemporaryDirectory(prefix="sandbox-control-") as directory:
             socket_path = Path(directory) / "final-answer.sock"

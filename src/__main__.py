@@ -1,6 +1,7 @@
 import time
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -18,6 +19,7 @@ from .config import (
 
 from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound, MBPPTaskInput, SWEBenchTaskInput
 from .utils import check_apikeys_available, load_mbpp_question, load_swe_question, getAPIkey
+from .sandbox.swebench_repo import load_swebench_repository
 
 
 class CLI:
@@ -33,7 +35,7 @@ class CLI:
             getAPIkey(provider)
             return provider
         except ValueError:
-            print(f"No key found for: {provider.NAME}")
+            pass
         return None
 
     def _addUserModel(self, model_name: str, provider_url: str) -> None:
@@ -73,11 +75,60 @@ class CLI:
     ) -> None:
         self._addUserModel(model_name, provider_url)
         question = load_swe_question(task_file)
-        question
+        with load_swebench_repository(question.docker_image) as testbed_path:
+            solution = asyncio.run(
+                generate_swe(self.provider_lst, question, testbed_path)
+            )
+        try:
+            solution_data = solution.model_dump()
+            with open(output or "output.json", "w", encoding="utf-8") as output_file:
+                json.dump(solution_data, output_file, indent=2)
+        except (OSError, TypeError, ValueError) as e:
+            print(f"Error writing solution to '{output or 'output.json'}': {e}")
 
 
+<<<<<<< HEAD
 async def generate_swe(provider_lst: list[Provider], question: SWEBenchTaskInput) -> SolutionOutput:
     ...
+=======
+async def generate_swe(
+    provider_lst: list[Provider],
+    question: SWEBenchTaskInput,
+    testbed_path: Path,
+) -> SolutionOutput:
+    project_root = Path(__file__).resolve().parents[1]
+    transport_swe = StdioTransport(
+        command=sys.executable,
+        args=[str(project_root / "mcp_tools_swebench.py")],
+        cwd=str(project_root),
+        env={**os.environ, "TESTBED_PATH": str(testbed_path)},
+    )
+    client_swe = fastmcp.Client(transport_swe)
+
+    async with client_swe:
+        sandbox_result = await client_swe.call_tool(
+                    "list_files",
+                    {
+                        "directory_str": "",
+                        "pattern": "*",
+                    },
+                )
+        print(sandbox_result.content)
+
+    return SolutionOutput(
+        task_id=question.instance_id,
+        benchmark="swebench",
+        success=False,
+        solution="",
+        iterations=0,
+        total_requests=0,
+        total_input_tokens=0,
+        total_output_tokens=0,
+        total_time_seconds=0.0,
+        steps=[],
+        error="SWE-bench agent loop is not implemented yet",
+    )
+>>>>>>> mboutte-swe_puling
 
 
 async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -> SolutionOutput:
@@ -178,13 +229,6 @@ if __name__ == "__main__":
         args=[str(PROJECT_ROOT / "mcp_tools_mbpp.py")],
         cwd=str(PROJECT_ROOT),
     )
-    transport_swe = StdioTransport(
-        command=sys.executable,
-        args=[str(PROJECT_ROOT / "mcp_tools_swebench.py")],
-        cwd=str(PROJECT_ROOT),
-    )
-
     client_mbpp = fastmcp.Client(transport_mbpp)
-    client_swe = fastmcp.Client(transport_swe)
 
     main()
