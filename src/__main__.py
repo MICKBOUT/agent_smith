@@ -77,7 +77,6 @@ class CLI:
 
 
 async def generate_swe(provider_lst: list[Provider], question: SWEBenchTaskInput) -> SolutionOutput:
-    return
     ...
 
 

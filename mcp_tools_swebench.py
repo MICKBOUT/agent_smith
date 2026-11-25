@@ -224,7 +224,7 @@ def get_patch() -> tuple[str, str, int]:
     Returns:
         tuple[str, str, int] : Stdout, Stderr and exit code.
     """
-    return run_command("git --no-pager diff", WORKDIR)
+    return run_command("git --no-pager diff", str(WORKDIR))
 
 
 if __name__ == "__mcp_tools_swebench__":

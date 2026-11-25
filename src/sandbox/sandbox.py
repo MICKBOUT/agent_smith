@@ -230,7 +230,6 @@ class Sandbox:
                 [" ".join(self.authorized_imports), "--single"],
                 self.timeout,
                 self.max_memory,
-                self.allowed_directories,
                 code
             )
 

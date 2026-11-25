@@ -23,7 +23,7 @@ def _load_dotenv() -> None:
     load_dotenv()
 
 
-def get_env_var(var_name: str) -> str:
+def get_env_var(var_name: str) -> str | None:
     _load_dotenv()
     return os.getenv(var_name)
 
