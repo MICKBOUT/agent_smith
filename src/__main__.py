@@ -11,7 +11,7 @@ import openai
 import fastmcp
 from fastmcp.client.transports import StdioTransport
 
-from .api import ChatApiMbpp  # , ChatApiSwe
+from .api import ChatApiMbpp, ChatApiSwe
 from .config import (
     DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION,
     SYSTEM_PROMPT_MBPP, Provider, UserProvider
@@ -56,9 +56,10 @@ class CLI:
     ) -> None:
         """Run MBPP"""
         self._addUserModel(model_name, provider_url)
-
         question = load_mbpp_question(task_file)
+
         solution = asyncio.run(generate_mbpp(self.provider_lst, question))
+
         try:
             solution_data = solution.model_dump()
             with open(output, "w", encoding="utf-8") as output_file:
@@ -68,17 +69,19 @@ class CLI:
 
     def agent_swebench(
         self,
-        task_file: str = "datasets/swebench/task.json",
+        task_file: str = "cache/swebench_task.json",
         output: str = "",
         model_name: str = "",
         provider_url: str = "",
     ) -> None:
         self._addUserModel(model_name, provider_url)
         question = load_swe_question(task_file)
+
         with load_swebench_repository(question.docker_image) as testbed_path:
             solution = asyncio.run(
                 generate_swe(self.provider_lst, question, testbed_path)
             )
+
         try:
             solution_data = solution.model_dump()
             with open(output or "output.json", "w", encoding="utf-8") as output_file:
@@ -87,6 +90,7 @@ class CLI:
             print(f"Error writing solution to '{output or 'output.json'}': {e}")
 
 
+# this code is entierly copy from mbpp for now, the entier code need to be addapt for a proper swe banch implementaion
 async def generate_swe(
     provider_lst: list[Provider],
     question: SWEBenchTaskInput,
@@ -101,29 +105,101 @@ async def generate_swe(
     )
     client_swe = fastmcp.Client(transport_swe)
 
+    chat = ChatApiSwe(question=question)
     async with client_swe:
-        sandbox_result = await client_swe.call_tool(
-                    "list_files",
+        start_time = time.monotonic()
+        generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
+        error, steps, tool_result = None, [], {}
+        llm_generation_output = None
+        solution_code = ""
+        final_answer_submitted = False
+        for iteration in range(1, DEFAULT_MAX_ITERATION + 1):
+            remaining_time = generation_deadline - time.monotonic()
+            if remaining_time < 0:
+                error = "Generation timed out"
+                break
+
+            try:
+                llm_generation_output = chat.generateSandboxCode(timeout=remaining_time)
+                # Keep the conversation complete: the next request needs to
+                # know which code produced the sandbox observation.
+                chat.messages.append({
+                    "role": "assistant",
+                    "content": llm_generation_output.response,
+                })
+                sandbox_result = await client_mbpp.call_tool(
+                    "run_tests",
                     {
-                        "directory_str": "",
-                        "pattern": "*",
+                        "code": llm_generation_output.code,
+                        "test_list": question.test_list,
+                        "test_imports": question.test_imports,
                     },
                 )
-        tool_result = json.loads(sandbox_result.data)
-        print(tool_result)
+                tool_result = json.loads(sandbox_result.data)
+                final_answer = tool_result.get("final_answer")
+                if isinstance(final_answer, str) and final_answer:
+                    solution_code = final_answer
+                    final_answer_submitted = True
+                    break
+
+                if tool_result["success"]:
+                    chat.addLogSucces(tool_result["output"])
+                else:
+                    error = tool_result["output"]
+                    chat.addLogSandboxError(error)
+                steps.append(StepMetrics(
+                    step=iteration,
+                    input_tokens=llm_generation_output.input_tokens,
+                    output_tokens=llm_generation_output.output_tokens,
+                    request_time_ms=remaining_time + time.monotonic() - generation_deadline,
+                    api_url=chat.llm_provider.URL,
+                    model_name=chat.llm_provider.MODEL_NAME,
+                    llm_output=llm_generation_output.response,
+                    sandbox_input=llm_generation_output.sandbox_input,
+                    sandbox_output=tool_result["output"],
+                    retries=0
+                ))
+
+            except (
+                openai.RateLimitError,
+                openai.BadRequestError,
+                openai.InternalServerError,
+                openai.NotFoundError,
+                openai.APITimeoutError,
+            ) as e:
+                if isinstance(e, openai.NotFoundError):
+                    print("[LOG]: Model Not found, please  change it in the config folder")
+                provider_lst.pop()
+                if len(provider_lst) == 0:
+                    error = "No provider available"
+                    break
+                chat.setProvider(provider_lst[-1])
+            except (NoneMessageError, NoCodeBlockFound) as e:
+                error = str(e)
+                chat.addLogDefaultError(error)
+                steps.append(StepMetrics(
+                    step=iteration,
+                    input_tokens=llm_generation_output.input_tokens,
+                    output_tokens=llm_generation_output.output_tokens,
+                    request_time_ms=remaining_time + time.monotonic() - generation_deadline,
+                    api_url=chat.llm_provider.URL,
+                    model_name=chat.llm_provider.MODEL_NAME,
+                    llm_output=llm_generation_output.response,
+                ))
 
     return SolutionOutput(
-        task_id=question.instance_id,
+        task_id=chat.question.instance_id,
         benchmark="swebench",
-        success=False,
-        solution="",
-        iterations=0,
-        total_requests=0,
-        total_input_tokens=0,
-        total_output_tokens=0,
-        total_time_seconds=0.0,
-        steps=[],
-        error="SWE-bench agent loop is not implemented yet",
+        success=final_answer_submitted,
+        solution=solution_code,
+        iterations=locals().get("iteration", 0),
+        total_requests=locals().get("iteration", 0),
+        total_input_tokens=chat.total_input_tokens,
+        total_output_tokens=chat.total_output_tokens,
+        total_time_seconds=time.monotonic() - start_time,
+        steps=steps,
+        system_prompt=SYSTEM_PROMPT_MBPP,
+        error=error,
     )
 
 

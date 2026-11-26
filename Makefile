@@ -15,7 +15,7 @@ get-task-mbpp:
 	cd moulinette && env -u VIRTUAL_ENV uv run moulinette_eval dump mbpp --output ../cache/mbpp_task.json
 
 get-task-swebench:
-	cd .dev/moulinette && env -u VIRTUAL_ENV uv run moulinette_eval dump swebench --output ../../datasets/swebench/task.json
+	cd moulinette && env -u VIRTUAL_ENV uv run moulinette_eval dump swebench --output ../cache/swebench_task.json
 
 run-mbpp:
 	uv run python -m $(SRC) agent_mbpp

@@ -7,8 +7,7 @@ import openai
 from ..config import (
     DEFAULT_TEMPERATURE,
     DEFAULT_REQUEST_TIMEOUT,
-    DEFAULT_MAX_TOKEN,
-    MAX_INPUT_TOKENS,
+
     SYSTEM_SUCCES_MESSAGE,
     SYSTEM_ERROR_MESSAGE,
 )
@@ -21,6 +20,9 @@ BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
 
 
 class ChatApi(ABC):
+    MAX_INPUT_TOKENS = 10000
+    MAX_OUTPUT_TOKENS = 10000
+
     def __init__(self, llm_provider: Provider):
         self.setProvider(llm_provider)
         self._setQuestion()
@@ -37,6 +39,9 @@ class ChatApi(ABC):
 
     def setProvider(self, llm_provider: Provider) -> None:
         self.llm_provider = llm_provider
+
+    def GetSandboxIntput(self) -> str:
+        pass
 
     def _getClient(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> openai.OpenAI:
         return openai.OpenAI(
@@ -68,13 +73,13 @@ class ChatApi(ABC):
 
     def _getRequestMessages(self) -> list[dict[str, str]]:
         base_messages = self.messages[:2]
-        if self._countMessageTokens(base_messages) > MAX_INPUT_TOKENS:
-            raise ValueError("The system prompt and task exceed 6000 input tokens")
+        if self._countMessageTokens(base_messages) > self.MAX_INPUT_TOKENS:
+            raise ValueError(f"The system prompt and task exceed {self.MAX_INPUT_TOKENS} input tokens")
 
         recent_messages: list[dict[str, str]] = []
         for message in reversed(self.messages[2:]):
             candidate = base_messages + [message] + recent_messages
-            if self._countMessageTokens(candidate) > MAX_INPUT_TOKENS:
+            if self._countMessageTokens(candidate) > self.MAX_INPUT_TOKENS:
                 break
             recent_messages.insert(0, message)
 
@@ -98,7 +103,7 @@ class ChatApi(ABC):
                 model=self.llm_provider.MODEL_NAME,
                 messages=cast(list[openai.types.chat.ChatCompletionMessageParam], request_messages),
                 stop=["<end_code>"],
-                max_tokens=DEFAULT_MAX_TOKEN,
+                max_tokens=self.MAX_OUTPUT_TOKENS,
                 temperature=DEFAULT_TEMPERATURE
             )
 
@@ -123,7 +128,7 @@ class ChatApi(ABC):
                 code=code,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
-                sandbox_input=createProgram(code, self.question.test_list, self.question.test_imports),
+                sandbox_input=self.GetSandboxIntput(code)
             )
 
         except (openai.RateLimitError, openai.BadRequestError, openai.InternalServerError, openai.APITimeoutError) as e:
@@ -132,7 +137,7 @@ class ChatApi(ABC):
         except NoneMessageError:
             print(BLUE_LOG_STR, self.llm_provider.NAME, "None Message RETRY", flush=True)
             raise
-        except NoCodeBlockFound as e:
+        except NoCodeBlockFound:
             print(BLUE_LOG_STR, self.llm_provider.NAME, "No CodeBlock Found\n", flush=True)
             print(message, flush=True)
             raise
