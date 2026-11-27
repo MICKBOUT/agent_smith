@@ -39,8 +39,8 @@ class ChatApiSwe(ChatApi):
             },
         ]
 
-    def GetSandboxIntput(self, code) -> str:
-        return code
+    def _getSandboxIntput(self, code) -> str:
+        return super()._getSandboxIntput(code)
 
 
 async def main():

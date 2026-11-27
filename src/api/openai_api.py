@@ -12,7 +12,7 @@ from ..config import (
     SYSTEM_ERROR_MESSAGE,
 )
 from ..models import NoCodeBlockFound, NoneMessageError, LLmGenerationOutput
-from ..utils import getAPIkey, createProgram
+from ..utils import getAPIkey
 from ..config import Provider
 
 
@@ -40,8 +40,9 @@ class ChatApi(ABC):
     def setProvider(self, llm_provider: Provider) -> None:
         self.llm_provider = llm_provider
 
-    def GetSandboxIntput(self) -> str:
-        pass
+    @abstractmethod
+    def _getSandboxIntput(self, code: str) -> str:
+        return code
 
     def _getClient(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> openai.OpenAI:
         return openai.OpenAI(
@@ -104,7 +105,8 @@ class ChatApi(ABC):
                 messages=cast(list[openai.types.chat.ChatCompletionMessageParam], request_messages),
                 stop=["<end_code>"],
                 max_tokens=self.MAX_OUTPUT_TOKENS,
-                temperature=DEFAULT_TEMPERATURE
+                temperature=DEFAULT_TEMPERATURE,
+                tools=self.tools
             )
 
             choices = getattr(response, "choices", None)
@@ -128,7 +130,7 @@ class ChatApi(ABC):
                 code=code,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
-                sandbox_input=self.GetSandboxIntput(code)
+                sandbox_input=self._getSandboxIntput(code)
             )
 
         except (openai.RateLimitError, openai.BadRequestError, openai.InternalServerError, openai.APITimeoutError) as e:
@@ -155,3 +157,10 @@ class ChatApi(ABC):
             "role": "user",
             "content": f"Sandbox observation: {message}\n{SYSTEM_SUCCES_MESSAGE}",
         })
+
+    def generateSandboxCode(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> LLmGenerationOutput:
+        # client http so regenerate each time for connection timeout issue
+        request_timeout = min(timeout, DEFAULT_REQUEST_TIMEOUT)
+        with self._getClient(request_timeout) as client:
+            output = self._genCode(client)
+        return output

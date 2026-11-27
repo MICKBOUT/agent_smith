@@ -2,7 +2,7 @@ from .openai_api import ChatApi
 from ..config import SYSTEM_PROMPT_MBPP, DEFAULT_REQUEST_TIMEOUT, MAX_INPUT_TOKENS_MBPP, MAX_OUTPUT_TOKENS_MBPP
 from ..models import MBPPTaskInput, LLmGenerationOutput
 from ..config import Provider, DEFAULT_PROVIDER
-from ..utils import getTest, createProgram
+from ..utils import getTest
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
 
@@ -28,15 +28,8 @@ class ChatApiMbpp(ChatApi):
             },
         ]
 
-    def GetSandboxIntput(self, code) -> str:
-        return createProgram(code, self.question.test_list, self.question.test_imports)
-
-    def generateSandboxCode(self, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> LLmGenerationOutput:
-        # client http so regenerate each time for connection timeout issue
-        request_timeout = min(timeout, DEFAULT_REQUEST_TIMEOUT)
-        with self._getClient(request_timeout) as client:
-            output = self._genCode(client)
-        return output
+    def _getSandboxIntput(self, code) -> str:
+        return "\n".join([*self.question.test_imports, code])
 
 
 if __name__ == "__main__":

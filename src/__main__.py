@@ -13,8 +13,9 @@ from fastmcp.client.transports import StdioTransport
 
 from .api import ChatApiMbpp, ChatApiSwe
 from .config import (
-    DEFAULT_GENERATION_TIMEOUT, DEFAULT_MAX_ITERATION,
-    SYSTEM_PROMPT_MBPP, Provider, UserProvider
+    GENERATION_TIMEOUT_MBPP, GENERATION_TIMEOUT_SWE,
+    DEFAULT_MAX_ITERATION, SYSTEM_PROMPT_MBPP,
+    Provider, UserProvider
 )
 
 from .models import SolutionOutput, StepMetrics, NoneMessageError, NoCodeBlockFound, MBPPTaskInput, SWEBenchTaskInput
@@ -104,11 +105,23 @@ async def generate_swe(
         env={**os.environ, "TESTBED_PATH": str(testbed_path)},
     )
     client_swe = fastmcp.Client(transport_swe)
-
-    chat = ChatApiSwe(question=question)
     async with client_swe:
+
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description or "",
+                    "parameters": t.inputSchema,
+                },
+            }
+            for t in await client_swe.list_tools()
+        ]
+
+        chat = ChatApiSwe(question, provider_lst[-1], tools)
         start_time = time.monotonic()
-        generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
+        generation_deadline = start_time + GENERATION_TIMEOUT_SWE
         error, steps, tool_result = None, [], {}
         llm_generation_output = None
         solution_code = ""
@@ -127,15 +140,11 @@ async def generate_swe(
                     "role": "assistant",
                     "content": llm_generation_output.response,
                 })
-                sandbox_result = await client_mbpp.call_tool(
-                    "run_tests",
-                    {
-                        "code": llm_generation_output.code,
-                        "test_list": question.test_list,
-                        "test_imports": question.test_imports,
-                    },
-                )
-                tool_result = json.loads(sandbox_result.data)
+                code = llm_generation_output.code
+                print(code)
+                sandbox_result = sandbox_swe(code)
+                tool_result = json.loads(sandbox_result)
+
                 final_answer = tool_result.get("final_answer")
                 if isinstance(final_answer, str) and final_answer:
                     solution_code = final_answer
@@ -203,12 +212,44 @@ async def generate_swe(
     )
 
 
+from src.models import SandboxConfig, SandboxError
+from src.sandbox.sandbox import Sandbox
+from src.utils import sanitizeImport
+
+sandbox: Sandbox | None = None
+
+
+def sandbox_swe(code):
+    """Run a candidate solution against MBPP assertion tests."""
+    global sandbox
+    if sandbox is None:
+        sandbox = Sandbox(SandboxConfig())
+    try:
+        result = None
+        result = sandbox.execute(code)
+        if result.returncode != 0:
+            raise SandboxError(result.stderr)
+
+    except SandboxError:
+        return json.dumps({
+            "success": False,
+            "output": result.stderr if result else "SandBoxtime out",
+            "final_answer": None
+        })
+
+    return json.dumps({
+        "success": result.returncode == 0,
+        "output": result.stdout or result.stderr,
+        "final_answer": getattr(result, "final_answer", None),
+    })
+
+
 async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -> SolutionOutput:
     chat = ChatApiMbpp(question=question, llm_provider=provider_lst[-1])
 
     async with client_mbpp:
         start_time = time.monotonic()
-        generation_deadline = start_time + DEFAULT_GENERATION_TIMEOUT
+        generation_deadline = start_time + GENERATION_TIMEOUT_MBPP
         error, steps, tool_result = None, [], {}
         llm_generation_output = None
         solution_code = ""
@@ -305,6 +346,15 @@ async def generate_mbpp(provider_lst: list[Provider], question: MBPPTaskInput) -
 
 def main() -> None:
     fire.Fire(CLI)
+
+
+async def get_tools():
+    async with Client("mcp_tools_swebench.py") as mcp:  # or "http://localhost:9000/mcp"
+        tools = [{"type": "function", "function": {
+            "name": t.name,
+            "description": t.description or "",
+            "parameters": t.inputSchema}} for t in await mcp.list_tools()]
+    return tools
 
 
 if __name__ == "__main__":

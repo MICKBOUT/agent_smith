@@ -5,7 +5,7 @@ from fastmcp import FastMCP
 
 from src.models import SandboxConfig, SandboxError
 from src.sandbox.sandbox import Sandbox
-from src.utils import sanitizeImport, createProgram
+from src.utils import sanitizeImport
 
 mcp = FastMCP("MBPP tools")
 sandbox: Sandbox | None = None
@@ -15,7 +15,7 @@ sandbox: Sandbox | None = None
 @mcp.tool
 def run_tests(code: str, test_list: list[str], test_imports: list[str]) -> str:
     """Run a candidate solution against MBPP assertion tests."""
-    program = createProgram(code, test_list, test_imports)
+    program = "\n".join([code, *test_list])
 
     global sandbox
     if sandbox is None or sandbox.authorized_imports != sanitizeImport(test_imports):

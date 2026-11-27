@@ -18,10 +18,6 @@ def sanitizeImport(modules: list[str]) -> list[str]:
     return [ell for ell in modules if ell[:7] == "import "]
 
 
-def createProgram(code: str, test_list: list[str], test_imports: list[str]) -> str:
-    return "\n".join([*test_imports, code, *test_list])
-
-
 def _load_question(task_file: str) -> str:
     with open(task_file) as file:
         conetent = json.load(file)
