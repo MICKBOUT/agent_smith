@@ -1,8 +1,13 @@
-from .openai_api import ChatApi
-from ..config import SYSTEM_PROMPT_MBPP, DEFAULT_REQUEST_TIMEOUT, MAX_INPUT_TOKENS_MBPP, MAX_OUTPUT_TOKENS_MBPP
-from ..models import MBPPTaskInput, LLmGenerationOutput
-from ..config import Provider, DEFAULT_PROVIDER
-from ..utils import getTest
+from agent_common.api.openai_api import ChatApi
+from agent_common.config import (
+    SYSTEM_PROMPT_MBPP,
+    MAX_INPUT_TOKENS_MBPP,
+    MAX_OUTPUT_TOKENS_MBPP,
+    Provider,
+    DEFAULT_PROVIDER,
+)
+from agent_common.models import MBPPTaskInput
+from agent_common.utils import getTest
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
 
@@ -14,6 +19,7 @@ class ChatApiMbpp(ChatApi):
     def __init__(self, question: MBPPTaskInput, llm_provider: Provider):
         self.setProvider(llm_provider)
         self._setQuestion(question)
+        self._setTools()
 
     def _setQuestion(self, question: MBPPTaskInput) -> None:
         super()._setQuestion()

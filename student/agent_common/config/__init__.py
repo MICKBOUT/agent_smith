@@ -1,4 +1,4 @@
-from .config import (
+from agent_common.config.config import (
     DEFAULT_PROVIDER,
     DEFAULT_REQUEST_TIMEOUT,
     DEFAULT_MAX_ITERATION,
@@ -7,8 +7,8 @@ from .config import (
     MAX_INPUT_TOKENS_MBPP, MAX_INPUT_TOKENS_SWE,
     MAX_OUTPUT_TOKENS_MBPP, MAX_OUTPUT_TOKENS_SWE
 )
-from .prompt import SYSTEM_PROMPT_MBPP, SYSTEM_PROMPT_SWE, SYSTEM_SUCCES_MESSAGE, SYSTEM_ERROR_MESSAGE
-from .enum import Provider, LLMProvider, UserProvider
+from agent_common.config.prompt import SYSTEM_PROMPT_MBPP, SYSTEM_PROMPT_SWE, SYSTEM_SUCCES_MESSAGE, SYSTEM_ERROR_MESSAGE
+from agent_common.config.enum import Provider, LLMProvider, UserProvider
 
 __all__ = [
     "DEFAULT_PROVIDER",

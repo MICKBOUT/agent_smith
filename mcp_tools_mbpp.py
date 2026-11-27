@@ -3,9 +3,9 @@
 import json
 from fastmcp import FastMCP
 
-from src.models import SandboxConfig, SandboxError
-from src.sandbox.sandbox import Sandbox
-from src.utils import sanitizeImport
+from agent_common.models import SandboxConfig, SandboxError
+from agent_common.sandbox.sandbox import Sandbox
+from agent_common.utils import sanitizeImport
 
 mcp = FastMCP("MBPP tools")
 sandbox: Sandbox | None = None

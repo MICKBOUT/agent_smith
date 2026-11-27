@@ -1,12 +1,13 @@
-import asyncio
 from typing import Any
 
-from fastmcp import Client
-
-from .openai_api import ChatApi
-from ..config import SYSTEM_PROMPT_SWE
-from ..models import SWEBenchTaskInput
-from ..config import Provider, MAX_INPUT_TOKENS_SWE, MAX_OUTPUT_TOKENS_SWE
+from agent_common.api.openai_api import ChatApi
+from agent_common.config import (
+    SYSTEM_PROMPT_SWE,
+    Provider,
+    MAX_INPUT_TOKENS_SWE,
+    MAX_OUTPUT_TOKENS_SWE,
+)
+from agent_common.models import SWEBenchTaskInput
 
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
@@ -36,20 +37,16 @@ class ChatApiSwe(ChatApi):
                 "role": "user",
                 "content": f"hints text: {self.question.hints_text}\n"
                 f"problem statement: {self.question.problem_statement}\n"
+                f"repository: {self.question.repo}\n"
+                f"evaluation script: {self.question.eval_script}\n"
+                "Use run_command with the repository root as workdir to run tests and the evaluation script.\n"
             },
         ]
 
-    def _getSandboxIntput(self, code) -> str:
-        return super()._getSandboxIntput(code)
+    @staticmethod
+    def extractCode(message: str) -> str:
+        # SWE-bench uses native API tool calls, not sandboxed Python snippets.
+        return ""
 
-
-async def main():
-    async with Client("mcp_tools_swebench.py") as mcp:  # or "http://localhost:9000/mcp"
-        tools = [{"type": "function", "function": {
-            "name": t.name,
-            "description": t.description or "",
-            "parameters": t.inputSchema}} for t in await mcp.list_tools()]
-    return tools
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    def _getSandboxIntput(self, code: str) -> str:
+        return code

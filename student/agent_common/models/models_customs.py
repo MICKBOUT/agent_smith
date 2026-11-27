@@ -7,3 +7,4 @@ class LLmGenerationOutput(BaseModel):
     input_tokens: int = Field(..., description="The number of token in the input prompt")
     output_tokens: int = Field(..., description="The number of token in the output answer")
     sandbox_input: str = Field(..., description="The code with the test ready to be executed in the sandbox")
+    tool_calls: list[dict] = Field(default_factory=list, description="Tool calls requested by the model")

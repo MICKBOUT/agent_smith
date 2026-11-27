@@ -35,16 +35,23 @@ def validate_mcp_paths(path_str: str, file: bool = True) -> Path:
         ValueError: If the path is not valid.
     """
 
-    path = WORKDIR / Path(path_str)
+    requested_path = Path(path_str)
+    if requested_path.is_absolute():
+        try:
+            requested_path = WORKDIR / requested_path.relative_to(Path("/testbed"))
+        except ValueError:
+            # Keep absolute host paths supported, then enforce the same
+            # repository boundary below.
+            pass
+
+    path = (WORKDIR / requested_path).resolve()
+    try:
+        path.relative_to(WORKDIR)
+    except ValueError as err:
+        raise ValueError("Path must stay inside the SWE-bench repository") from err
 
     if not path.exists():
         raise FileNotFoundError(f"File {path_str} not found!")
-
-    try:
-        if path != path.resolve():
-            path = path.resolve()
-    except OSError as err:
-        raise err
 
     if file and not path.is_file():
         raise ValueError(f"Expected a file for {path_str}")
@@ -211,8 +218,44 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
         str: stdout + stderr + exit code.
     """
     workdir = validate_mcp_paths(workdir_str, file=False)
-    target = f"cd {workdir};"
-    result = subprocess.run(target + command, shell=True, capture_output=True, text=True)
+    image = os.environ.get("SWEBENCH_IMAGE")
+    container_id = os.environ.get("SWEBENCH_CONTAINER_ID")
+    relative_workdir = workdir.relative_to(WORKDIR)
+    container_workdir = Path("/testbed") / relative_workdir
+    if container_id:
+        docker_command = [
+            "docker", "exec",
+            "--workdir", str(container_workdir),
+            container_id,
+            "bash", "-lc", command,
+        ]
+        result = subprocess.run(
+            docker_command,
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    elif image:
+        docker_command = [
+            "docker", "run", "--rm",
+            "--volume", f"{WORKDIR}:/testbed",
+            "--workdir", str(container_workdir),
+            "--entrypoint", "bash", image, "-lc", command,
+        ]
+        result = subprocess.run(
+            docker_command,
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    else:
+        result = subprocess.run(
+            command,
+            shell=True,
+            cwd=workdir,
+            capture_output=True,
+            text=True,
+        )
     return (
         str(result.stdout) if result.stdout else "",
         str(result.stderr) if result.stderr else "",
@@ -221,14 +264,17 @@ def run_command(command: str, workdir_str: str) -> tuple[str, str, int]:
 
 
 @mcp.tool
-def get_patch() -> tuple[str, str, int]:
+def get_patch() -> str:
     """
-    This funcion run 'git --no-pager diff' and return the result.
+    Return the current git diff against HEAD.
 
     Returns:
-        tuple[str, str, int] : Stdout, Stderr and exit code.
+        The complete diff, or a readable error if git diff failed.
     """
-    return run_command("git --no-pager diff", str(WORKDIR))
+    stdout, stderr, returncode = run_command("git --no-pager diff HEAD --", str(WORKDIR))
+    if returncode:
+        return f"git diff failed ({returncode}): {stderr}"
+    return stdout
 
 
 if __name__ == "__main__":

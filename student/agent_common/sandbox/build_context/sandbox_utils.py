@@ -1,17 +1,6 @@
 import json
 import socket
 from typing import Any, Callable
-from ...mcp_tools_swebench import (
-    validate_mcp_paths,
-    read_file,
-    edit_file,
-    list_files,
-    search_code,
-    search_function_or_class_definition_in_code,
-    find_references,
-    run_command,
-    get_patch
-)
 
 Builtins = dict[str, object]
 NameSpace = dict[str, Builtins]
@@ -134,17 +123,6 @@ class SafeBuiltins:
     it contain all allowed builtins used in the sandbox.
     """
     all = {
-        # mcp functions
-        "validate_mcp_paths": validate_mcp_paths,
-        "read_file": read_file,
-        "edit_file": edit_file,
-        "list_files": list_files,
-        "search_code": search_code,
-        "search_function_or_class_definition_in_code": search_function_or_class_definition_in_code,
-        "find_references": find_references,
-        "run_command": run_command,
-        "get_patch": get_patch,
-
         # basic types
         "bool": bool,
         "int": int,

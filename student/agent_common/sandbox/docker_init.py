@@ -1,4 +1,5 @@
 import json
+import hashlib
 import socket
 import subprocess
 import tempfile
@@ -7,9 +8,9 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-from models import SandboxError
+from agent_common.models import SandboxError
 
-IMAGE_NAME = "agent-smith-sandbox:local"
+IMAGE_NAME = "agent-smith-sandbox"
 CONTROL_DIRECTORY = "/run/sandbox-control"
 CONTROL_SOCKET = f"{CONTROL_DIRECTORY}/sandbox.sock"
 FINAL_ANSWER_SOCKET = f"{CONTROL_DIRECTORY}/final-answer.sock"
@@ -21,17 +22,30 @@ class Container:
     environnement with docker
     """
 
-    MSG = "\033[34mLoading of container...\033[0m"
+    MSG = "\033[34mBuilding sandbox image...\033[0m"
 
     def __init__(self) -> None:
-        """First build of the container"""
+        """Build or reuse an image matching the current sandbox sources."""
         build_dir = Path(__file__).resolve().parent / "build_context"
+        source_hash = hashlib.sha256()
+        for source_name in ("Dockerfile", "worker.py", "sandbox_utils.py"):
+            source_hash.update(source_name.encode("utf-8"))
+            source_hash.update((build_dir / source_name).read_bytes())
+        self.image_name = f"{IMAGE_NAME}:{source_hash.hexdigest()[:16]}"
 
-        subprocess.run(
-            ["docker", "build", "--quiet", "--tag", IMAGE_NAME, str(build_dir)],
-            check=True,
+        image_exists = subprocess.run(
+            ["docker", "image", "inspect", self.image_name],
             stdout=subprocess.DEVNULL,
-        )
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode == 0
+        if not image_exists:
+            print(self.MSG, file=sys.stderr)
+            subprocess.run(
+                ["docker", "build", "--quiet", "--tag", self.image_name, str(build_dir)],
+                check=True,
+                stdout=subprocess.DEVNULL,
+            )
 
     def run(self, args: list[str], timeout: int,
             max_memory: int, code: str) -> subprocess.CompletedProcess:
@@ -49,9 +63,6 @@ class Container:
             CompletedProcess: the result of the process.
         """
 
-        # stdout is reserved for MCP JSON-RPC when called by the MCP server.
-        print(self.MSG, file=sys.stderr)
-
         with tempfile.TemporaryDirectory(prefix="sandbox-control-") as directory:
             socket_path = Path(directory) / "final-answer.sock"
             listener = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
@@ -67,7 +78,7 @@ class Container:
                 "--network=none",
                 "--mount",
                 f"type=bind,source={directory},target={CONTROL_DIRECTORY}",
-                IMAGE_NAME, "python", "worker.py", *args, FINAL_ANSWER_SOCKET,
+                self.image_name, "python", "worker.py", *args, FINAL_ANSWER_SOCKET,
             ]
             try:
                 result = subprocess.run(
@@ -161,7 +172,7 @@ class Container:
             )
 
         command.extend(
-            [IMAGE_NAME, "python", "-B", "-u", "worker.py", *args]
+            [self.image_name, "python", "-B", "-u", "worker.py", *args]
         )
 
         print(self.MSG)

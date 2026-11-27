@@ -1,19 +1,20 @@
-from typing import cast, Optional
+from typing import Any, cast, Optional
 from abc import ABC, abstractmethod
+import json
 
 import tiktoken
 import openai
 
-from ..config import (
+from agent_common.config import (
     DEFAULT_TEMPERATURE,
     DEFAULT_REQUEST_TIMEOUT,
 
     SYSTEM_SUCCES_MESSAGE,
     SYSTEM_ERROR_MESSAGE,
 )
-from ..models import NoCodeBlockFound, NoneMessageError, LLmGenerationOutput
-from ..utils import getAPIkey
-from ..config import Provider
+from agent_common.models import NoCodeBlockFound, NoneMessageError, LLmGenerationOutput
+from agent_common.utils import getAPIkey
+from agent_common.config import Provider
 
 
 BLUE_LOG_STR = "\033[34m[LOG]\033[0m"
@@ -29,7 +30,7 @@ class ChatApi(ABC):
         self._setTools()
 
     def _setTools(self) -> None:
-        self.tools = {}
+        self.tools = None
 
     @abstractmethod
     def _setQuestion(self) -> None:
@@ -69,20 +70,47 @@ class ChatApi(ABC):
         for message in messages:
             token_count += 4
             token_count += len(encoding.encode(message["role"]))
-            token_count += len(encoding.encode(message["content"]))
+            token_count += len(encoding.encode(message.get("content") or ""))
+            if message.get("tool_calls"):
+                token_count += len(encoding.encode(json.dumps(message["tool_calls"])))
         return token_count
 
-    def _getRequestMessages(self) -> list[dict[str, str]]:
+    def _getRequestMessages(self) -> list[dict[str, Any]]:
         base_messages = self.messages[:2]
         if self._countMessageTokens(base_messages) > self.MAX_INPUT_TOKENS:
             raise ValueError(f"The system prompt and task exceed {self.MAX_INPUT_TOKENS} input tokens")
 
-        recent_messages: list[dict[str, str]] = []
-        for message in reversed(self.messages[2:]):
-            candidate = base_messages + [message] + recent_messages
+        # Keep an assistant tool call and its matching tool results together.
+        history = self.messages[2:]
+        groups: list[list[dict[str, Any]]] = []
+        index = 0
+        while index < len(history):
+            message = history[index]
+            group = [message]
+            if message.get("tool_calls"):
+                pending_ids = {
+                    call.get("id") for call in message["tool_calls"]
+                }
+                cursor = index + 1
+                while cursor < len(history) and history[cursor].get("role") == "tool":
+                    if history[cursor].get("tool_call_id") in pending_ids:
+                        group.append(history[cursor])
+                    cursor += 1
+                    if not pending_ids.difference(
+                        item.get("tool_call_id") for item in group[1:]
+                    ):
+                        break
+                index = cursor
+            else:
+                index += 1
+            groups.append(group)
+
+        recent_messages: list[dict[str, Any]] = []
+        for group in reversed(groups):
+            candidate = base_messages + group + recent_messages
             if self._countMessageTokens(candidate) > self.MAX_INPUT_TOKENS:
                 break
-            recent_messages.insert(0, message)
+            recent_messages = group + recent_messages
 
         return base_messages + recent_messages
 
@@ -100,22 +128,26 @@ class ChatApi(ABC):
     def _genCode(self, client: openai.OpenAI) -> LLmGenerationOutput:
         try:
             request_messages = self._getRequestMessages()
-            response = client.chat.completions.create(
+            request = dict(
                 model=self.llm_provider.MODEL_NAME,
                 messages=cast(list[openai.types.chat.ChatCompletionMessageParam], request_messages),
                 stop=["<end_code>"],
                 max_tokens=self.MAX_OUTPUT_TOKENS,
                 temperature=DEFAULT_TEMPERATURE,
-                tools=self.tools
             )
+            if self.tools:
+                request["tools"] = self.tools
+            response = client.chat.completions.create(**request)
 
             choices = getattr(response, "choices", None)
             if not choices:
                 raise NoneMessageError("The model returned no response choices")
 
-            message = choices[0].message.content
+            message_obj = choices[0].message
+            message = message_obj.content
+            tool_calls = [call.model_dump() for call in (message_obj.tool_calls or [])]
 
-            if not isinstance(message, str):
+            if not isinstance(message, str) and not tool_calls:
                 raise NoneMessageError
 
             usage = getattr(response, "usage", None)
@@ -124,13 +156,15 @@ class ChatApi(ABC):
                 input_tokens, output_tokens = usage.prompt_tokens or 0, usage.completion_tokens or 0
             self.total_input_tokens += input_tokens
             self.total_output_tokens += output_tokens
-            code = self.extractCode(message)
+            response_text = message or ""
+            code = self.extractCode(response_text) if not tool_calls else ""
             return LLmGenerationOutput(
-                response=message,
+                response=response_text,
                 code=code,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
-                sandbox_input=self._getSandboxIntput(code)
+                sandbox_input=self._getSandboxIntput(code),
+                tool_calls=tool_calls,
             )
 
         except (openai.RateLimitError, openai.BadRequestError, openai.InternalServerError, openai.APITimeoutError) as e:
@@ -141,7 +175,7 @@ class ChatApi(ABC):
             raise
         except NoCodeBlockFound:
             print(BLUE_LOG_STR, self.llm_provider.NAME, "No CodeBlock Found\n", flush=True)
-            print(message, flush=True)
+            print(message if "message" in locals() else "", flush=True)
             raise
         return ""
 

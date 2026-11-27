@@ -4,7 +4,7 @@ MOULINETTE_DIR	= moulinette
 FLAKE8_EXCLUDE	= --exclude $(VENV),$(DEV_DIR),$(MOULINETTE_DIR)
 MYPY_EXCLUDE	= --exclude '(^|/)(\.venv|\.dev|moulinette)(/|$$)'
 
-SRC		= src
+SRC		= src.
 MAIN	= $(SRC)/__main__.py
 CACHE	= (cache)
 
@@ -18,10 +18,10 @@ get-task-swebench:
 	cd moulinette && env -u VIRTUAL_ENV uv run moulinette_eval dump swebench --output ../cache/swebench_task.json
 
 run-mbpp:
-	uv run python -m $(SRC) agent_mbpp
+	cd student && uv run python -m agent_mbpp
 
 run-swebench:
-	uv run python -m $(SRC) agent_swebench \
+	uv run python -m agent_swebench \
 		--output output.json \
 		--task_file datasets/swebench/task.json
 

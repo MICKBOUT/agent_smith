@@ -1,4 +1,4 @@
-from .enum import LLMProvider
+from agent_common.config.enum import LLMProvider
 
 DEFAULT_PROVIDER = LLMProvider.OPENROUTER.value  # unused for now
 

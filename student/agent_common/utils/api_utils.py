@@ -1,8 +1,8 @@
 import os
 from functools import lru_cache
 
-from config import LLMProvider, Provider
-from models import NoCodeBlockFound
+from agent_common.config import LLMProvider, Provider
+from agent_common.models import NoCodeBlockFound
 
 
 def check_apikeys_available() -> list[Provider]:
