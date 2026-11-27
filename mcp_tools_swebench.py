@@ -146,12 +146,21 @@ def list_files(directory_str: str, pattern: str) -> str | None:
     Returns:
         str: all the files | Error message
     """
-    directory = validate_mcp_paths(directory_str, file=False)
+    try:
+        directory = validate_mcp_paths(directory_str, file=False)
+    except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
+        return (
+            f"Error: {exc} The requested directory must exist inside the "
+            "SWE-bench repository. Inspect the repository root with "
+            "list_files('/testbed', '*') and retry using an existing path."
+        )
 
     files = glob.glob(pattern, root_dir=directory, recursive=True)
     resolved = [str((directory / file).resolve()) for file in files]
 
-    return "\n".join(file for file in resolved)
+    if not resolved:
+        return f"No files matched pattern {pattern!r} in {directory_str}."
+    return "\n".join(resolved)
 
 
 @mcp.tool

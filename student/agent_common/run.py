@@ -50,7 +50,7 @@ class chikibrrr:
     def agent_mbpp(
         self,
         task_file: str = "../cache/mbpp_task.json",
-        output: str = "../output.json",
+        output: str = "../cache/mbpp_solution.json",
         model_name: str = "",
         provider_url: str = "",
     ) -> None:
@@ -71,7 +71,7 @@ class chikibrrr:
     def agent_swebench(
         self,
         task_file: str = "../cache/swebench_task.json",
-        output: str = "",
+        output: str = "../cache/swebench_solution.json",
         model_name: str = "",
         provider_url: str = "",
     ) -> None:
@@ -171,10 +171,21 @@ async def generate_swe(
                         arguments = function.get("arguments", "{}")
                         if isinstance(arguments, str):
                             arguments = json.loads(arguments)
-                        result = await client_swe.call_tool(function["name"], arguments)
-                        result_text = await _mcp_result_text(result)
-                        if getattr(result, "is_error", False):
-                            result_text = f"Tool error: {result_text}"
+                        try:
+                            result = await client_swe.call_tool(
+                                function["name"], arguments
+                            )
+                            result_text = await _mcp_result_text(result)
+                            if getattr(result, "is_error", False):
+                                result_text = f"Tool error: {result_text}"
+                        except Exception as tool_exc:
+                            result = None
+                            result_text = (
+                                f"Tool error: {type(tool_exc).__name__}: {tool_exc}. "
+                                "This tool call failed; do not repeat the same invalid "
+                                "arguments. Inspect the repository root and retry with "
+                                "an existing path."
+                            )
                         chat.messages.append({
                             "role": "tool",
                             "tool_call_id": call["id"],
@@ -184,7 +195,8 @@ async def generate_swe(
 
                         if function["name"] == "get_patch":
                             if (
-                                not getattr(result, "is_error", False)
+                                result is not None
+                                and not getattr(result, "is_error", False)
                                 and result_text
                                 and not result_text.startswith("git diff failed")
                             ):
