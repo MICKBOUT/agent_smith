@@ -21,9 +21,7 @@ run-mbpp:
 	cd student && uv run python -m agent_mbpp
 
 run-swebench:
-	uv run python -m agent_swebench \
-		--output output.json \
-		--task_file datasets/swebench/task.json
+	cd student && uv run python -m agent_swebench
 
 run-model_lst:
 	uv run python -m src.api.openai_api
