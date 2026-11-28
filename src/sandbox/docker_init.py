@@ -57,7 +57,8 @@ class Container:
         """
 
         # stdout is reserved for MCP JSON-RPC when called by the MCP server.
-        print(self.MSG, file=sys.stderr)
+        if self.kwargs.get("quiet") is True:
+            print(self.MSG, file=sys.stderr)
 
         with tempfile.TemporaryDirectory(prefix="sandbox-control-") as directory:
             socket_path = Path(directory) / "final-answer.sock"
