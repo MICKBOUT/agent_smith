@@ -57,7 +57,7 @@ class Container:
         """
 
         # stdout is reserved for MCP JSON-RPC when called by the MCP server.
-        if self.kwargs.get("quiet") is True:
+        if self.kwargs.get("quiet") is not True:
             print(self.MSG, file=sys.stderr)
 
         with tempfile.TemporaryDirectory(prefix="sandbox-control-") as directory:
