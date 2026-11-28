@@ -31,6 +31,9 @@ run-model_lst:
 lint:
 	uv run flake8 . $(FLAKE8_EXCLUDE)
 	uv run mypy . $(MYPY_EXCLUDE)
+sandbox-test:
+	uv run src/sandbox/tests/main.py
+
 
 lint-strict: install
 	uv run flake8 . $(FLAKE8_EXCLUDE)

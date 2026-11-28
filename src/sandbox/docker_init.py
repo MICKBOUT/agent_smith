@@ -23,15 +23,22 @@ class Container:
 
     MSG = "\033[34mLoading of container...\033[0m"
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
         """First build of the container"""
+        self.kwargs = kwargs
         build_dir = Path(__file__).resolve().parent / "build_context"
 
-        subprocess.run(
-            ["docker", "build", "--quiet", "--tag", IMAGE_NAME, str(build_dir)],
-            check=True,
-            stdout=subprocess.DEVNULL,
-        )
+        if self.kwargs.get("quiet") is True:
+            subprocess.run(
+                ["docker", "build", "--quiet", "--tag", IMAGE_NAME, str(build_dir)],
+                check=True,
+                stdout=subprocess.DEVNULL
+            )
+        else:
+            subprocess.run(
+                ["docker", "build", "--quiet", "--tag", IMAGE_NAME, str(build_dir)],
+                check=True
+            )
 
     def run(self, args: list[str], timeout: int,
             max_memory: int, code: str) -> subprocess.CompletedProcess:
@@ -59,9 +66,11 @@ class Container:
             socket_path.chmod(0o666)
             listener.settimeout(0.1)
 
+            container_name = f"agent-smith-exec-{uuid4().hex[:12]}"
             command = [
                 "docker", "run",
                 "--rm",
+                "--name", container_name,
                 "--interactive",
                 f"--memory={max_memory}m", f"--memory-swap={max_memory}m",
                 "--network=none",
@@ -83,6 +92,12 @@ class Container:
                 except (socket.timeout, BlockingIOError):
                     result.final_answer = None
             finally:
+                subprocess.run(
+                    ["docker", "rm", "--force", container_name],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
                 listener.close()
 
         return result
@@ -185,25 +200,22 @@ class Container:
             container_name the name of the container to be stopped.
             force: force flag
         """
-        if process.poll() is not None:
-            return
-
-        if not force:
+        if process.poll() is None and not force:
             try:
                 process.wait(timeout=2)
-                return
             except subprocess.TimeoutExpired:
                 pass
 
         subprocess.run(
-            ["docker", "kill", container_name],
+            ["docker", "rm", "--force", container_name],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False,
         )
 
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
+        if process.poll() is None:
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()

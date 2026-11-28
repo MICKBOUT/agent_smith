@@ -12,6 +12,7 @@ import time
 import argparse
 import tempfile
 import uuid
+import signal
 
 from pathlib import Path
 from urllib.parse import urlparse
@@ -42,23 +43,26 @@ class Sandbox:
         "\npdauga & mboutte.\n"
     )
 
-    def __init__(self, config: SandboxConfig) -> None:
+    def __init__(self, config: SandboxConfig, **kwargs) -> None:
         """
         init the config and init the container.
 
         Args:
             config: The sandbox config.
         """
-        # stdout is the MCP stdio transport when this sandbox is used by a
-        # tool server. Keep diagnostics off the JSON-RPC stream.
-        print(self.LOGO, file=sys.stderr)
+        self.quiet = kwargs.get("quiet", False)
+        if self.quiet not in [True, False]:
+            self.quiet = False
+
+        if not self.quiet:
+            print(self.LOGO, file=sys.stderr)
         self.config = config
         self.timeout = config.max_execution_time_seconds
         self.authorized_imports = config.authorized_imports
         self.max_memory = config.max_memory_mb
         self.allowed_directories = config.allowed_directories
 
-        self.container = Container()
+        self.container = Container(quiet=self.quiet)
 
     def repl(self) -> None:
         """
@@ -83,6 +87,17 @@ class Sandbox:
         worker = None
         control = None
         container_name = f"agent-smith-repl-{uuid.uuid4().hex[:12]}"
+        handled_signals = (signal.SIGHUP, signal.SIGTERM)
+        previous_handlers = {
+            signum: signal.getsignal(signum) for signum in handled_signals
+        }
+
+        def stop_on_parent_exit(signum, frame) -> None:
+            del signum, frame
+            raise KeyboardInterrupt
+
+        for signum in handled_signals:
+            signal.signal(signum, stop_on_parent_exit)
 
         try:
             final_answer_listener = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
@@ -162,6 +177,8 @@ class Sandbox:
             if worker is not None:
                 self.container.stop_interactive(worker, container_name)
             temporary_directory.cleanup()
+            for signum, handler in previous_handlers.items():
+                signal.signal(signum, handler)
 
     def _wait_return_code(
         self,
