@@ -1,3 +1,5 @@
+from .sandbox import Sandbox, SandboxConfig
+
 class SandboxError(Exception):
     RED, BOLD, RESET = "\033[31m", "\033[1m", "\033[0m"
 

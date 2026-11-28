@@ -23,6 +23,9 @@ run-swebench: install
 run-model_lst:
 	uv run python -m src.api.openai_api
 
+sandbox-test:
+	uv run src/sandbox/tests/main.py
+
 lint: install
 	uv run flake8 . $(EXCLUDE_LINT)
 	uv run mypy . $(EXCLUDE_LINT)
